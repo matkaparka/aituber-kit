@@ -239,6 +239,15 @@ export const routePolicies = {
     secret: { kind: 'none' },
     restrictedBehavior: 'in-route',
   },
+  // helixus-motion
+  '/api/get-motion-clips': {
+    path: '/api/get-motion-clips',
+    featureName: 'get-motion-clips',
+    methods: ['GET'],
+    resources: ['fs-read'],
+    secret: { kind: 'none' },
+    restrictedBehavior: 'in-route',
+  },
   '/api/get-vrm-list': {
     path: '/api/get-vrm-list',
     featureName: 'get-vrm-list',

@@ -15,6 +15,7 @@ import { LiveLayer } from '../emoteController/liveLayer' // helixus-live
 import { Talk } from '../messages/messages'
 import { PoseManager } from '@/lib/VRMAnimation/poseManager'
 import { resolveMotionTag } from '@/features/helixus/motionTags' // helixus-motion
+import { MotionDirector } from '@/features/helixus/motionDirector' // helixus-motion
 import type { PlaybackObserver } from '../messages/characterRenderer'
 
 /**
@@ -29,6 +30,8 @@ export class Model {
   public poseYRotationOffset: number = 0
   public poseManager: PoseManager
   public liveLayer?: LiveLayer // helixus-live
+  public motionDirector?: MotionDirector // helixus-motion
+  private _audioActive = 0 // helixus-motion: 正在播放的语音数
 
   private _lookAtTargetParent: THREE.Object3D
   private _lipSync?: LipSync
@@ -56,6 +59,9 @@ export class Model {
 
     VRMUtils.rotateVRM0(vrm)
     this.mixer = new THREE.AnimationMixer(vrm.scene)
+    // helixus-motion: 待机 / talk 轮播 / 动作标签统一由 director 调度权重
+    this.motionDirector = new MotionDirector(this.mixer, vrm)
+    void this.motionDirector.loadTalkClips()
 
     this.emoteController = new EmoteController(vrm, this._lookAtTargetParent)
     // helixus-live: 眨眼、表情过渡、视线和身体小动作交给程序层
@@ -88,8 +94,13 @@ export class Model {
 
     const clip = vrmAnimation.createAnimationClip(vrm)
     const action = mixer.clipAction(clip)
+    const hadIdle = !!this.currentAction
     this.currentAction = action
-    action.play()
+    if (this.motionDirector) {
+      this.motionDirector.setIdle(action, hadIdle ? 0.4 : 0) // helixus-motion
+    } else {
+      action.play()
+    }
   }
 
   /**
@@ -110,17 +121,22 @@ export class Model {
       this.poseManager.resetToIdle(this)
     }
 
-    await new Promise((resolve) => {
-      this._lipSync?.playFromArrayBuffer(
-        buffer,
-        () => {
-          resolve(true)
-        },
-        isNeedDecode,
-        24000,
-        observer?.onPlaybackStart
-      )
-    })
+    this._audioActive++ // helixus-motion
+    try {
+      await new Promise((resolve) => {
+        this._lipSync?.playFromArrayBuffer(
+          buffer,
+          () => {
+            resolve(true)
+          },
+          isNeedDecode,
+          24000,
+          observer?.onPlaybackStart
+        )
+      })
+    } finally {
+      this._audioActive = Math.max(0, this._audioActive - 1)
+    }
   }
 
   /** ヘッダーなしPCM16を到着したチャンクから順に再生する。 */
@@ -138,12 +154,17 @@ export class Model {
       this.poseManager.resetToIdle(this)
     }
 
-    await this._lipSync?.playPcm16Stream(
-      stream,
-      undefined,
-      sampleRate,
-      observer?.onPlaybackStart
-    )
+    this._audioActive++ // helixus-motion
+    try {
+      await this._lipSync?.playPcm16Stream(
+        stream,
+        undefined,
+        sampleRate,
+        observer?.onPlaybackStart
+      )
+    } finally {
+      this._audioActive = Math.max(0, this._audioActive - 1)
+    }
   }
 
   // helixus-motion: 标签按 motionTags.ts 的固定表映射到 /poses/<tag>.vrma，没有文件就跳过
@@ -161,6 +182,7 @@ export class Model {
    */
   public stopSpeaking() {
     this._lipSync?.stopCurrentPlayback()
+    this.motionDirector?.stopOneShot() // helixus-motion: 停止按钮连标签动作一起停
   }
 
   /**
@@ -181,6 +203,7 @@ export class Model {
     }
 
     this.emoteController?.update(delta)
+    this.motionDirector?.update(delta, this._audioActive > 0) // helixus-motion
     this.mixer?.update(delta)
 
     if (this.poseYRotationOffset !== 0 && this.vrm) {
@@ -197,9 +220,11 @@ export class Model {
     // helixus-live: 动画之后、渲染之前叠加程序动作
     this.liveLayer?.update(delta, {
       emotion: this.emoteController?.currentEmotion ?? 'neutral',
-      idleWeight: this.currentAction
-        ? this.currentAction.getEffectiveWeight()
-        : 1,
+      idleWeight: this.motionDirector
+        ? this.motionDirector.idleWeight
+        : this.currentAction
+          ? this.currentAction.getEffectiveWeight()
+          : 1,
       externalVolume: this.externalLipSyncVolume,
     })
 

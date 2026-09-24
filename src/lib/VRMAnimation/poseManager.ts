@@ -87,9 +87,7 @@ export class PoseManager {
       const additiveAction = model.mixer.clipAction(additiveClip)
       additiveAction.blendMode = THREE.AdditiveAnimationBlendMode
 
-      if (!this.poseState && model.currentAction) {
-        model.currentAction.fadeOut(FADE_DURATION)
-      }
+      if (!this.poseState) this.takeBody(model) // helixus-motion
 
       poseAction.reset().fadeIn(FADE_DURATION).play()
       additiveAction.reset().fadeIn(FADE_DURATION).play()
@@ -136,9 +134,7 @@ export class PoseManager {
       const additiveAction = model.mixer.clipAction(additiveClip)
       additiveAction.blendMode = THREE.AdditiveAnimationBlendMode
 
-      if (!this.poseState && model.currentAction) {
-        model.currentAction.fadeOut(FADE_DURATION)
-      }
+      if (!this.poseState) this.takeBody(model) // helixus-motion
 
       poseAction.reset().fadeIn(FADE_DURATION).play()
       additiveAction.reset().fadeIn(FADE_DURATION).play()
@@ -148,16 +144,51 @@ export class PoseManager {
     }
   }
 
+  // helixus-motion: json 姿势接管身体时，让 director 把待机 / talk 淡出
+  private takeBody(model: Model) {
+    if (model.motionDirector) model.motionDirector.setExternal(true)
+    else model.currentAction?.fadeOut(FADE_DURATION)
+  }
+
+  private giveBackBody(model: Model) {
+    if (model.motionDirector) model.motionDirector.setExternal(false)
+    else model.currentAction?.reset().fadeIn(FADE_DURATION).play()
+  }
+
+  private oneShotClips = new Map<string, THREE.AnimationClip>() // helixus-motion
+  private oneShotVrm: Model['vrm'] = undefined
+
   // helixus-vrma-patch
   private async playOneShot(model: Model, poseName: string, path: string): Promise<void> {
     const requestId = ++this.applyRequestId
-    const vrma = await loadVRMAnimation(buildUrl(path))
-    if (!vrma || !model.vrm || !model.mixer) return
+    if (this.oneShotVrm !== model.vrm) {
+      this.oneShotClips.clear() // 换了模型，缓存的 clip 骨骼名对不上
+      this.oneShotVrm = model.vrm
+    }
+    let clip = this.oneShotClips.get(path)
+    if (!clip) {
+      const vrma = await loadVRMAnimation(buildUrl(path))
+      if (!vrma || !model.vrm || !model.mixer) return
+      clip = vrma.createAnimationClip(model.vrm)
+      clip.name = `oneshot_${poseName}`
+      this.oneShotClips.set(path, clip)
+    }
+    if (!model.vrm || !model.mixer) return
     if (requestId !== this.applyRequestId) return
     const mixer = model.mixer
-    const clip = vrma.createAnimationClip(model.vrm)
-    clip.name = `oneshot_${poseName}`
     const action = mixer.clipAction(clip)
+    // helixus-motion: 由 director 播放，播完自动接回 talk（还在说话）或待机
+    if (model.motionDirector) {
+      if (this.poseState) {
+        this.poseState.poseAction.fadeOut(FADE_DURATION)
+        this.poseState.additiveAction.fadeOut(FADE_DURATION)
+        this.poseState = null
+        this.currentPoseName = null
+        model.motionDirector.setExternal(false)
+      }
+      model.motionDirector.playOneShot(action)
+      return
+    }
     action.setLoop(THREE.LoopOnce, 1)
     action.clampWhenFinished = true
     if (this.poseState) {
@@ -196,9 +227,8 @@ export class PoseManager {
       this.poseState = null
       this.currentPoseName = null
     }
-    if (model.currentAction) {
-      model.currentAction.reset().fadeIn(FADE_DURATION).play()
-    }
+    // helixus-motion: 标签动作（director 管）不在这里切断，播完自己回去；停止按钮走 model.stopSpeaking
+    this.giveBackBody(model)
   }
 
   get isActive(): boolean {
