@@ -22,8 +22,6 @@ export class ExpressionController {
     preset: VRMExpressionPresetName
     value: number
   } | null
-  private _currentVowels: Partial<Record<VRMExpressionPresetName, number>> | null =
-    null // helixus-wlipsync
   constructor(vrm: VRM, camera: THREE.Object3D) {
     this._autoLookAt = new AutoLookAt(vrm, camera)
     this._currentEmotion = 'neutral'
@@ -32,17 +30,6 @@ export class ExpressionController {
       this._expressionManager = vrm.expressionManager
       this._autoBlink = new AutoBlink(vrm.expressionManager)
     }
-  }
-
-  // helixus-live
-  public get currentEmotion(): VRMExpressionPresetName {
-    return this._currentEmotion
-  }
-
-  // helixus-live: 眨眼改由 liveLayer 负责（不规则、带过渡、有情绪表情时也眨）
-  public disableAutoBlink() {
-    if (this._autoBlink) this._expressionManager?.setValue('blink', 0)
-    this._autoBlink = undefined
   }
 
   public playEmotion(preset: VRMExpressionPresetName) {
@@ -64,7 +51,6 @@ export class ExpressionController {
   }
 
   public lipSync(preset: VRMExpressionPresetName, value: number) {
-    this.clearVowels() // helixus-wlipsync
     if (this._currentLipSync) {
       this._expressionManager?.setValue(this._currentLipSync.preset, 0)
     }
@@ -72,23 +58,6 @@ export class ExpressionController {
       preset,
       value,
     }
-  }
-
-  // helixus-wlipsync
-  public lipSyncVowels(vowels: Partial<Record<VRMExpressionPresetName, number>>) {
-    if (this._currentLipSync) {
-      this._expressionManager?.setValue(this._currentLipSync.preset, 0)
-      this._currentLipSync = null
-    }
-    this._currentVowels = vowels
-  }
-
-  private clearVowels() {
-    if (!this._currentVowels) return
-    for (const name of Object.keys(this._currentVowels) as VRMExpressionPresetName[]) {
-      this._expressionManager?.setValue(name, 0)
-    }
-    this._currentVowels = null
   }
 
   public update(delta: number) {
@@ -102,13 +71,6 @@ export class ExpressionController {
           ? this._currentLipSync.value * 0.5
           : this._currentLipSync.value * 0.25
       this._expressionManager?.setValue(this._currentLipSync.preset, weight)
-    }
-    // helixus-wlipsync: 口の開き具合は元の音量方式と同じ係数（通常 0.5、感情表現中 0.25）
-    if (this._currentVowels) {
-      const scale = this._currentEmotion === 'neutral' ? 1.0 : 0.8
-      for (const [name, v] of Object.entries(this._currentVowels) as [VRMExpressionPresetName, number][]) {
-        this._expressionManager?.setValue(name, v * scale)
-      }
     }
   }
 }

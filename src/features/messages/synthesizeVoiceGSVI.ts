@@ -12,6 +12,7 @@ export async function synthesizeVoiceGSVIApi(
     '/api/tts-gsvi',
     {
       message: talk.message,
+      emotion: talk.emotion,
       serverUrl: url,
       character,
       batchSize: batchsize,

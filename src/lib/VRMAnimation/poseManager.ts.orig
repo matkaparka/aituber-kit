@@ -17,7 +17,6 @@ export class PoseManager {
   private poseState: PoseState | null = null
   private applyRequestId = 0
   private currentPoseName: string | null = null
-  private oneShot: THREE.AnimationAction | null = null // helixus-vrma-patch
 
   async applyPose(
     model: Model,
@@ -25,12 +24,6 @@ export class PoseManager {
     poseConfig: PoseConfigItem
   ): Promise<void> {
     if (!model.vrm || !model.mixer) return
-
-    // helixus-vrma-patch: .vrma は一回だけ再生して待機に戻る
-    if (!('sequence' in poseConfig) && /\.vrma$/i.test(poseConfig.json)) {
-      await this.playOneShot(model, poseName, poseConfig.json)
-      return
-    }
 
     // 同じポーズが既にアクティブなら何もしない
     if (this.currentPoseName === poseName && this.poseState) return
@@ -148,47 +141,10 @@ export class PoseManager {
     }
   }
 
-  // helixus-vrma-patch
-  private async playOneShot(model: Model, poseName: string, path: string): Promise<void> {
-    const requestId = ++this.applyRequestId
-    const vrma = await loadVRMAnimation(buildUrl(path))
-    if (!vrma || !model.vrm || !model.mixer) return
-    if (requestId !== this.applyRequestId) return
-    const mixer = model.mixer
-    const clip = vrma.createAnimationClip(model.vrm)
-    clip.name = `oneshot_${poseName}`
-    const action = mixer.clipAction(clip)
-    action.setLoop(THREE.LoopOnce, 1)
-    action.clampWhenFinished = true
-    if (this.poseState) {
-      this.poseState.poseAction.fadeOut(FADE_DURATION)
-      this.poseState.additiveAction.fadeOut(FADE_DURATION)
-      this.poseState = null
-      this.currentPoseName = null
-    }
-    if (this.oneShot && this.oneShot !== action) this.oneShot.fadeOut(FADE_DURATION)
-    if (model.currentAction) model.currentAction.fadeOut(FADE_DURATION)
-    action.reset().fadeIn(FADE_DURATION).play()
-    this.oneShot = action
-    const onFinished = (e: { action: THREE.AnimationAction }) => {
-      if (e.action !== action) return
-      mixer.removeEventListener('finished', onFinished)
-      if (this.oneShot !== action) return
-      this.oneShot = null
-      action.fadeOut(FADE_DURATION)
-      model.currentAction?.reset().fadeIn(FADE_DURATION).play()
-    }
-    mixer.addEventListener('finished', onFinished)
-  }
-
   resetToIdle(model: Model): void {
     if (!model.mixer) return
 
     model.poseYRotationOffset = 0
-    if (this.oneShot) {
-      this.oneShot.fadeOut(FADE_DURATION) // helixus-vrma-patch
-      this.oneShot = null
-    }
 
     if (this.poseState) {
       this.poseState.poseAction.fadeOut(FADE_DURATION)

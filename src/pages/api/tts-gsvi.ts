@@ -6,6 +6,7 @@ import { routePolicies } from '@/lib/accessPolicy/routePolicies'
 
 interface RequestBody {
   message: string
+  emotion?: string
   serverUrl?: string
   character: string
   batchSize: number
@@ -17,7 +18,8 @@ async function handler(
   res: NextApiResponse,
   gate: PolicyGate
 ) {
-  const { message, character, batchSize, speed } = req.body as RequestBody
+  const { message, emotion, character, batchSize, speed } =
+    req.body as RequestBody
   const serverUrl = gate.serverUrl!.raw.replace(/\/$/, '')
 
   if (
@@ -39,7 +41,8 @@ async function handler(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         character,
-        emotion: 'default',
+        emotion:
+          typeof emotion === 'string' && emotion.length > 0 ? emotion : 'default',
         text: message,
         batch_size: batchSize,
         speed: speed.toString(),

@@ -11,7 +11,6 @@ import { VRMAnimation } from '../../lib/VRMAnimation/VRMAnimation'
 import { VRMLookAtSmootherLoaderPlugin } from '@/lib/VRMLookAtSmootherLoaderPlugin/VRMLookAtSmootherLoaderPlugin'
 import { LipSync } from '../lipSync/lipSync'
 import { EmoteController } from '../emoteController/emoteController'
-import { LiveLayer } from '../emoteController/liveLayer' // helixus-live
 import { Talk } from '../messages/messages'
 import { PoseManager } from '@/lib/VRMAnimation/poseManager'
 import settingsStore from '@/features/stores/settings'
@@ -28,7 +27,6 @@ export class Model {
   public currentAction?: THREE.AnimationAction
   public poseYRotationOffset: number = 0
   public poseManager: PoseManager
-  public liveLayer?: LiveLayer // helixus-live
 
   private _lookAtTargetParent: THREE.Object3D
   private _lipSync?: LipSync
@@ -58,20 +56,12 @@ export class Model {
     this.mixer = new THREE.AnimationMixer(vrm.scene)
 
     this.emoteController = new EmoteController(vrm, this._lookAtTargetParent)
-    // helixus-live: 眨眼、表情过渡、视线和身体小动作交给程序层
-    this.emoteController.disableAutoBlink()
-    this.liveLayer = new LiveLayer(
-      vrm,
-      this._lipSync?.analyser,
-      this._lookAtTargetParent
-    )
   }
 
   public unLoadVrm() {
     if (this.vrm) {
       VRMUtils.deepDispose(this.vrm.scene)
       this.vrm = null
-      this.liveLayer = undefined // helixus-live
     }
   }
 
@@ -176,12 +166,8 @@ export class Model {
 
   public update(delta: number): void {
     if (this._lipSync) {
-      const { volume, vowels } = this._lipSync.update() // helixus-wlipsync
-      if (vowels && this.externalLipSyncVolume === null) {
-        this.emoteController?.lipSyncVowels(vowels)
-      } else {
-        this.emoteController?.lipSync('aa', this.externalLipSyncVolume ?? volume)
-      }
+      const { volume } = this._lipSync.update()
+      this.emoteController?.lipSync('aa', this.externalLipSyncVolume ?? volume)
     }
 
     this.emoteController?.update(delta)
@@ -197,15 +183,6 @@ export class Model {
         hipsNode.quaternion.premultiply(this._yOffsetQuat)
       }
     }
-
-    // helixus-live: 动画之后、渲染之前叠加程序动作
-    this.liveLayer?.update(delta, {
-      emotion: this.emoteController?.currentEmotion ?? 'neutral',
-      idleWeight: this.currentAction
-        ? this.currentAction.getEffectiveWeight()
-        : 1,
-      externalVolume: this.externalLipSyncVolume,
-    })
 
     this.vrm?.update(delta)
   }

@@ -13,15 +13,6 @@ export class EmoteController {
     this._expressionController = new ExpressionController(vrm, camera)
   }
 
-  // helixus-live
-  public get currentEmotion(): VRMExpressionPresetName {
-    return this._expressionController.currentEmotion
-  }
-
-  public disableAutoBlink() {
-    this._expressionController.disableAutoBlink()
-  }
-
   public playEmotion(preset: VRMExpressionPresetName) {
     this._expressionController.playEmotion(preset)
   }

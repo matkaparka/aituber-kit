@@ -34,17 +34,6 @@ export class ExpressionController {
     }
   }
 
-  // helixus-live
-  public get currentEmotion(): VRMExpressionPresetName {
-    return this._currentEmotion
-  }
-
-  // helixus-live: 眨眼改由 liveLayer 负责（不规则、带过渡、有情绪表情时也眨）
-  public disableAutoBlink() {
-    if (this._autoBlink) this._expressionManager?.setValue('blink', 0)
-    this._autoBlink = undefined
-  }
-
   public playEmotion(preset: VRMExpressionPresetName) {
     if (this._currentEmotion != 'neutral') {
       this._expressionManager?.setValue(this._currentEmotion, 0)

@@ -1,6 +1,5 @@
 import { logger } from '@/lib/logger'
 import { LipSyncAnalyzeResult } from './lipSyncAnalyzeResult'
-import { buildUrl } from '@/utils/buildUrl' // helixus-wlipsync
 
 const TIME_DOMAIN_DATA_LENGTH = 2048
 
@@ -17,16 +16,12 @@ export class LipSync {
     null
   private currentStreamSources = new Set<AudioBufferSourceNode>()
   private streamPlaybackGeneration = 0
-  // helixus-wlipsync
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private wlipsyncNode: any = null
 
   public constructor(audio: AudioContext, options?: { forceStart?: boolean }) {
     this.audio = audio
     this.analyser = audio.createAnalyser()
     this.timeDomainData = new Float32Array(TIME_DOMAIN_DATA_LENGTH)
     this.forceStart = options?.forceStart || false
-    void this.initWLipSync() // helixus-wlipsync
 
     // forceStartが有効な場合は強制的にインタラクション済みとマーク
     if (this.forceStart) {
@@ -136,21 +131,6 @@ export class LipSync {
     }
   }
 
-  // helixus-wlipsync: 音声から母音（あいうえお）を推定する
-  private async initWLipSync(): Promise<void> {
-    try {
-      const url = buildUrl('/wlipsync/wlipsync-single.js')
-      const mod = await import(/* webpackIgnore: true */ url)
-      const profile = await fetch(buildUrl('/wlipsync/profile.json')).then((r) => r.json())
-      const node = await mod.createWLipSyncNode(this.audio, profile)
-      this.analyser.connect(node)
-      this.wlipsyncNode = node
-      logger.log('wLipSync ready')
-    } catch (error) {
-      logger.warn('wLipSync unavailable, using volume lip sync:', error)
-    }
-  }
-
   public update(): LipSyncAnalyzeResult {
     // forceStartが有効でAudioContextが準備できていない場合は再開を試みる
     if (this.forceStart && this.audio.state === 'suspended') {
@@ -168,22 +148,6 @@ export class LipSync {
     volume = 1 / (1 + Math.exp(-45 * volume + 5))
     if (volume < 0.1) volume = 0
 
-    // helixus-wlipsync
-    const node = this.wlipsyncNode
-    if (node) {
-      const w: Record<string, number> = node.weights || {}
-      const v: number = node.volume || 0
-      return {
-        volume,
-        vowels: {
-          aa: Math.max((w.A || 0) * v, 0.6 * v),
-          ih: (w.I || 0) * v,
-          ou: (w.U || 0) * v,
-          ee: (w.E || 0) * v,
-          oh: (w.O || 0) * v,
-        },
-      }
-    }
     return {
       volume,
     }

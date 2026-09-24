@@ -40,10 +40,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const jsonFiles = files.filter((file) => file.endsWith('.json'))
 
     const poseFiles: PoseListItem[] = []
-    // helixus-vrma-patch: .vrma もポーズとして一覧に出す
-    for (const file of files.filter((f) => f.toLowerCase().endsWith('.vrma'))) {
-      poseFiles.push({ name: file.replace(/\.vrma$/i, ''), path: `/poses/${file}` })
-    }
 
     for (const file of jsonFiles) {
       try {

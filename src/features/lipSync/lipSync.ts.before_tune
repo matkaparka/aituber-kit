@@ -176,7 +176,7 @@ export class LipSync {
       return {
         volume,
         vowels: {
-          aa: Math.max((w.A || 0) * v, 0.6 * v),
+          aa: (w.A || 0) * v,
           ih: (w.I || 0) * v,
           ou: (w.U || 0) * v,
           ee: (w.E || 0) * v,
