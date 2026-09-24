@@ -10,6 +10,7 @@ import homeStore from '@/features/stores/home'
 import { Message } from '@/features/messages/messages'
 import { useRestrictedMode } from '@/hooks/useRestrictedMode'
 import { SpeakQueue } from '@/features/messages/speakQueue'
+import { availableMotionTags } from '@/features/helixus/motionTags' // helixus-motion
 import type {
   PresentationAssignment,
   PresentationControlAction,
@@ -179,9 +180,16 @@ const MessageReceiver = () => {
             ]
               .map((m) => `${m.role}: ${m.content}`)
               .join('\n')
-            const systemPrompt = message.useCurrentSystemPrompt
+            let systemPrompt = message.useCurrentSystemPrompt
               ? ss.systemPrompt
               : message.systemPrompt
+            // helixus-motion: 外部 ai_generate（弹幕桥）也带上可用动作标签，和 sendChatHandler 一致
+            if (systemPrompt) {
+              const motionIds = await availableMotionTags()
+              if (motionIds.length > 0) {
+                systemPrompt += `\n\n当前可用的动作标签（只能用这些）：${motionIds.join(', ')}`
+              }
+            }
             const messages: Message[] = [
               {
                 role: 'system',

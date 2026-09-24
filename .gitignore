@@ -104,3 +104,8 @@ promo-video/*
 
 # External presentation persistent storage
 /.aituber-kit/
+
+# helixus-motion: 来自 pixiv VRMA_MotionPack，不可再分发（fork 是公开的），只留在本地
+public/poses/arrogant.vrma
+public/poses/exercise.vrma
+public/poses/turnaround.vrma

@@ -16,6 +16,10 @@ export const HELIXUS_MOTION_TAGS = [
   'shrug',
   'think',
   'clap',
+  // 以下三个来自 pixiv VRMA_MotionPack（不进 git），7–12 秒的长动作
+  'arrogant',
+  'exercise',
+  'turnaround',
 ] as const
 
 export type HelixusMotionTag = (typeof HELIXUS_MOTION_TAGS)[number]
