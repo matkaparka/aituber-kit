@@ -20,6 +20,7 @@ export const MOTION = {
   minRemain: 1.5, // 随机起播点至少留这么多秒；剩余不足这个数的片段不再续播
   speed: [0.9, 1.1] as [number, number],
   idleFade: 1.5, // 待机站姿之间的交叉淡入
+  baseFade: 0.35, // 从非默认站姿（抱臂等）回到底姿，再开始说话 / 标签动作
   idleSwitch: [180, 360] as [number, number], // 待机站姿轮换间隔（秒）
   defaultIdle: '/idle_loop.vrma',
 }
@@ -61,6 +62,7 @@ export class MotionDirector {
   private idlePath: string | null = MOTION.defaultIdle
   private idleTimer = rand(MOTION.idleSwitch[0], MOTION.idleSwitch[1])
   private idleSwitching = false
+  private defaultIdleAction?: THREE.AnimationAction
 
   constructor(
     private mixer: THREE.AnimationMixer,
@@ -151,6 +153,7 @@ export class MotionDirector {
   /** 换待机动作。fade=0 表示立刻切（第一次加载时） */
   setIdle(action: THREE.AnimationAction, fade = 0) {
     if (this.idle?.action === action) return
+    if (!this.defaultIdleAction) this.defaultIdleAction = action // 第一次设置的就是 /idle_loop.vrma
     // fade 同时决定旧待机淡出、新待机淡入的速度（两边一样，权重和才不变）
     const f = fade > 0 ? fade : MOTION.talkFade
     if (this.idle) {
@@ -235,8 +238,28 @@ export class MotionDirector {
     }
     const wantTalk = this.silentFor < MOTION.release && this.clips.length > 0
 
+    // 非默认站姿（抱臂等）直接和说话 / 标签动作混合时，中间姿势会让前臂穿过胸甲
+    // （Blender 里实测：抱臂 → laugh 半程穿入 15 cm）。所以先回到底姿，再开始
+    const busy = !!this.oneShot || wantTalk
+    if (
+      busy &&
+      this.defaultIdleAction &&
+      this.idle?.action !== this.defaultIdleAction
+    ) {
+      this.setIdle(this.defaultIdleAction, MOTION.baseFade)
+      this.idlePath = MOTION.defaultIdle
+    }
+    const settling =
+      busy &&
+      this.entries.some((e) => e.kind === 'idle' && e !== this.idle && e.w > 0)
+    if (this.oneShot) this.oneShot.action.paused = settling // 回底姿期间标签动作停在第一帧
+
     // 标签动作快播完了：开始淡出，交还给 talk / 待机
-    if (this.oneShot && this.remaining(this.oneShot) <= MOTION.oneShotFade) {
+    if (
+      !settling &&
+      this.oneShot &&
+      this.remaining(this.oneShot) <= MOTION.oneShotFade
+    ) {
       this.oneShot.target = 0
       this.oneShot = null
       const done = this.oneShotDone
@@ -244,7 +267,9 @@ export class MotionDirector {
       done?.()
     }
 
-    if (this.oneShot) {
+    if (settling) {
+      this.setTargets('idle')
+    } else if (this.oneShot) {
       this.setTargets('oneshot')
     } else if (wantTalk) {
       this.ensureTalk()
@@ -256,6 +281,7 @@ export class MotionDirector {
     // talk 片段快播完了还在说话：交叉淡入下一段
     if (
       wantTalk &&
+      !settling &&
       !this.oneShot &&
       this.talk &&
       this.remaining(this.talk) <= MOTION.talkFade
@@ -289,6 +315,7 @@ export class MotionDirector {
         e.w > 0 ||
         e.target > 0 ||
         e === this.idle ||
+        e === this.oneShot || // 回底姿期间标签动作权重为 0，但还在排队，不能清掉
         (e.kind === 'talk' && e.idleAge < MOTION.resumeWindow)
       if (!keep) {
         e.action.stop()

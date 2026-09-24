@@ -731,25 +731,18 @@ const getInitialValuesFromEnv = (): SettingsState => ({
     parseFloat(process.env.NEXT_PUBLIC_PNGTUBER_OFFSET_X || '0') || 0,
   pngTuberOffsetY:
     parseFloat(process.env.NEXT_PUBLIC_PNGTUBER_OFFSET_Y || '0') || 0,
+  // helixus-motion: 默认值跟 Helixus 的动作标签表一致（说话时的标签映射不看这里，见 features/helixus/motionTags.ts）
   poseConfigs: [
-    { id: 'think', json: '/poses/think.json' },
-    { id: 'cheer', json: '/poses/cheer.json' },
-    { id: 'cross', json: '/poses/cross.json' },
-    { id: 'mouth_cover', json: '/poses/mouth_cover.json' },
-    { id: 'crossed_arms', json: '/poses/crossed_arms.json' },
+    { id: 'nod', json: '/poses/nod.vrma' },
+    { id: 'shake', json: '/poses/shake.vrma' },
+    { id: 'laugh', json: '/poses/laugh.vrma' },
+    { id: 'disdain', json: '/poses/disdain.vrma' },
+    { id: 'point', json: '/poses/point.vrma' },
+    { id: 'spread_arms', json: '/poses/spread_arms.vrma' },
+    { id: 'crossed_arms', json: '/poses/crossed_arms.vrma' },
+    { id: 'wave', json: '/poses/wave.vrma' },
+    { id: 'shrug', json: '/poses/shrug.vrma' },
     { id: 'bow', json: '/poses/bow.json' },
-    { id: 'shrug', json: '/poses/shrug.json' },
-    { id: 'shy', json: '/poses/shy.json' },
-    {
-      id: 'wave',
-      sequence: ['/poses/wave1.json', '/poses/wave2.json'],
-      switchDuration: 0.5,
-    },
-    {
-      id: 'clap',
-      sequence: ['/poses/clap1.json', '/poses/clap2.json'],
-      switchDuration: 0.2,
-    },
   ],
   thinkingPoseEnabled:
     process.env.NEXT_PUBLIC_THINKING_POSE_ENABLED === 'true' || false,
