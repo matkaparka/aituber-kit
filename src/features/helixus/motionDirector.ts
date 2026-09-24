@@ -62,7 +62,7 @@ export class MotionDirector {
   /** public/talk/*.vrma 全部读进来，每段再加一个镜像版本 */
   async loadTalkClips(): Promise<void> {
     try {
-      const res = await fetch(buildUrl('/api/get-motion-clips?dir=talk'))
+      const res = await fetch(buildUrl('/api/get-motion-clips') + '?dir=talk')
       const list: { name: string; path: string }[] = res.ok
         ? await res.json()
         : []
@@ -96,11 +96,17 @@ export class MotionDirector {
   /** 换待机动作。fade=0 表示立刻切（第一次加载时） */
   setIdle(action: THREE.AnimationAction, fade = 0) {
     if (this.idle?.action === action) return
-    if (this.idle) this.idle.target = 0
+    // fade 同时决定旧待机淡出、新待机淡入的速度（两边一样，权重和才不变）
+    const f = fade > 0 ? fade : MOTION.talkFade
+    if (this.idle) {
+      this.idle.target = 0
+      this.idle.fade = f
+      if (fade <= 0) this.idle.w = 0
+    }
     action.setLoop(THREE.LoopRepeat, Infinity)
     action.enabled = true
     action.play()
-    const e = this.add('idle', action, fade)
+    const e = this.add('idle', action, f)
     if (fade <= 0 || this.entries.length === 1) e.w = 1
     this.idle = e
   }
@@ -189,6 +195,7 @@ export class MotionDirector {
       this.remaining(this.talk) <= MOTION.talkFade
     ) {
       this.talk.target = 0
+      this.talk.fade = MOTION.talkFade
       this.talk = this.startTalk()
       if (this.talk) this.talk.target = 1
     }
@@ -206,6 +213,8 @@ export class MotionDirector {
       if (e.w < e.target) e.w = Math.min(e.target, e.w + step)
       else if (e.w > e.target) e.w = Math.max(e.target, e.w - step)
       e.idleAge = e.w === 0 && e.target === 0 ? e.idleAge + dt : 0
+      // talk 完全淡出后暂停在原处，重新开口时从这里接着播（不重新开始）
+      if (e.kind === 'talk') e.action.paused = e.w === 0 && e.target === 0
     }
 
     // 清理：权重归零且不会再用的动作停掉
@@ -247,11 +256,20 @@ export class MotionDirector {
     return e
   }
 
+  /** 目标变了的动作统一用 talkFade 过渡：淡入淡出同速，权重和保持 1 */
   private setTargets(active: Kind) {
     for (const e of this.entries) {
-      if (active === 'oneshot') e.target = e === this.oneShot ? 1 : 0
-      else if (active === 'talk') e.target = e === this.talk ? 1 : 0
-      else e.target = e === this.idle ? 1 : 0
+      const on =
+        active === 'oneshot'
+          ? e === this.oneShot
+          : active === 'talk'
+            ? e === this.talk
+            : e === this.idle
+      const target = on ? 1 : 0
+      if (e.target !== target) {
+        e.target = target
+        e.fade = MOTION.talkFade
+      }
     }
   }
 

@@ -62,6 +62,10 @@ export class Model {
     // helixus-motion: 待机 / talk 轮播 / 动作标签统一由 director 调度权重
     this.motionDirector = new MotionDirector(this.mixer, vrm)
     void this.motionDirector.loadTalkClips()
+    if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+      // 开发模式调试入口：控制台里用 __helixusModel.speak(...) 直接测动作
+      ;(window as unknown as { __helixusModel?: Model }).__helixusModel = this
+    }
 
     this.emoteController = new EmoteController(vrm, this._lookAtTargetParent)
     // helixus-live: 眨眼、表情过渡、视线和身体小动作交给程序层
