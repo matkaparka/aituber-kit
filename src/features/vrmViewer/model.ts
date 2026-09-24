@@ -62,6 +62,7 @@ export class Model {
     // helixus-motion: 待机 / talk 轮播 / 动作标签统一由 director 调度权重
     this.motionDirector = new MotionDirector(this.mixer, vrm)
     void this.motionDirector.loadTalkClips()
+    void this.motionDirector.loadIdleClips()
     if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
       // 开发模式调试入口：控制台里用 __helixusModel.speak(...) 直接测动作
       ;(window as unknown as { __helixusModel?: Model }).__helixusModel = this
@@ -102,6 +103,7 @@ export class Model {
     this.currentAction = action
     if (this.motionDirector) {
       this.motionDirector.setIdle(action, hadIdle ? 0.4 : 0) // helixus-motion
+      if (hadIdle) this.motionDirector.markExternalIdle() // 拖放进来的动作不参与轮换
     } else {
       action.play()
     }

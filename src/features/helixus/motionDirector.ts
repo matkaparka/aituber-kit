@@ -19,6 +19,9 @@ export const MOTION = {
   resumeWindow: 3, // 停下后这么久内又开口，接着播原来那段，不换新的
   minRemain: 1.5, // 随机起播点至少留这么多秒；剩余不足这个数的片段不再续播
   speed: [0.9, 1.1] as [number, number],
+  idleFade: 1.5, // 待机站姿之间的交叉淡入
+  idleSwitch: [180, 360] as [number, number], // 待机站姿轮换间隔（秒）
+  defaultIdle: '/idle_loop.vrma',
 }
 
 type Kind = 'idle' | 'talk' | 'oneshot'
@@ -53,6 +56,11 @@ export class MotionDirector {
   private clipCache = new Map<TalkClip, THREE.AnimationClip>()
   private bag: number[] = []
   private lastBase = -1
+  private idlePaths: string[] = [MOTION.defaultIdle]
+  private idleClips = new Map<string, THREE.AnimationClip>()
+  private idlePath: string | null = MOTION.defaultIdle
+  private idleTimer = rand(MOTION.idleSwitch[0], MOTION.idleSwitch[1])
+  private idleSwitching = false
 
   constructor(
     private mixer: THREE.AnimationMixer,
@@ -92,6 +100,53 @@ export class MotionDirector {
     }
   }
 
+  /** 待机站姿列表：/idle_loop.vrma + public/idle/*.vrma。只有一个时不轮换 */
+  async loadIdleClips(): Promise<void> {
+    try {
+      const res = await fetch(buildUrl('/api/get-motion-clips') + '?dir=idle')
+      const list: { name: string; path: string }[] = res.ok
+        ? await res.json()
+        : []
+      this.idlePaths = [MOTION.defaultIdle, ...list.map((i) => i.path)]
+      logger.log(`helixus-motion: ${this.idlePaths.length} idle poses`)
+    } catch (e) {
+      logger.warn('helixus-motion: idle list unavailable', e)
+    }
+  }
+
+  /** 立刻换一个待机站姿（仍然只在真正待机时才换）。返回是否换了 */
+  async switchIdle(): Promise<boolean> {
+    const candidates = this.idlePaths.filter((p) => p !== this.idlePath)
+    if (candidates.length === 0 || this.idleSwitching) return false
+    const path = candidates[Math.floor(Math.random() * candidates.length)]
+    this.idleSwitching = true
+    try {
+      let clip = this.idleClips.get(path)
+      if (!clip) {
+        const anim = await loadVRMAnimation(buildUrl(path))
+        if (!anim) return false
+        clip = anim.createAnimationClip(this.vrm)
+        clip.name = `idle_${path}`
+        this.idleClips.set(path, clip)
+      }
+      if (!this.isIdle) return false // 加载期间开口了：下次再换
+      this.setIdle(this.mixer.clipAction(clip), MOTION.idleFade)
+      this.idlePath = path
+      logger.log(`helixus-motion: idle -> ${path}`)
+      return true
+    } catch (e) {
+      logger.warn(`helixus-motion: failed to load idle ${path}`, e)
+      return false
+    } finally {
+      this.idleSwitching = false
+    }
+  }
+
+  /** 外部（viewer 拖放等）直接指定的待机，不在轮换列表里 */
+  markExternalIdle() {
+    this.idlePath = null
+  }
+
   // ------------------------------------------------------------ 待机
   /** 换待机动作。fade=0 表示立刻切（第一次加载时） */
   setIdle(action: THREE.AnimationAction, fade = 0) {
@@ -124,7 +179,9 @@ export class MotionDirector {
       !this.oneShot &&
       this.externalTarget === 0 &&
       this.silentFor > MOTION.release &&
-      this.idleWeight > 0.999
+      this.entries.every(
+        (e) => e === this.idle || (e.w === 0 && e.target === 0)
+      )
     )
   }
 
@@ -167,6 +224,15 @@ export class MotionDirector {
   update(delta: number, audioPlaying: boolean) {
     const dt = Math.min(Math.max(delta, 0), 0.1)
     this.silentFor = audioPlaying ? 0 : this.silentFor + dt
+
+    // 待机站姿轮换：到点后等到真正待机再换
+    if (this.idlePaths.length > 1) {
+      this.idleTimer -= dt
+      if (this.idleTimer <= 0 && this.isIdle && !this.idleSwitching) {
+        this.idleTimer = rand(MOTION.idleSwitch[0], MOTION.idleSwitch[1])
+        void this.switchIdle()
+      }
+    }
     const wantTalk = this.silentFor < MOTION.release && this.clips.length > 0
 
     // 标签动作快播完了：开始淡出，交还给 talk / 待机
