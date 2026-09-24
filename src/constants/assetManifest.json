@@ -60,9 +60,7 @@
   ],
   "poses": [
     { "name": "bow", "path": "/poses/bow.json" },
-    { "name": "cheer", "path": "/poses/cheer.json" },
-    { "name": "shrug", "path": "/poses/shrug.json" },
-    { "name": "think", "path": "/poses/think.json" }
+    { "name": "shrug", "path": "/poses/shrug.json" }
   ],
   "slides": {
     "folders": ["demo"],

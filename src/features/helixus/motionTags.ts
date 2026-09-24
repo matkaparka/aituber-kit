@@ -14,6 +14,8 @@ export const HELIXUS_MOTION_TAGS = [
   'crossed_arms',
   'wave',
   'shrug',
+  'think',
+  'clap',
 ] as const
 
 export type HelixusMotionTag = (typeof HELIXUS_MOTION_TAGS)[number]

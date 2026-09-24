@@ -742,6 +742,8 @@ const getInitialValuesFromEnv = (): SettingsState => ({
     { id: 'crossed_arms', json: '/poses/crossed_arms.vrma' },
     { id: 'wave', json: '/poses/wave.vrma' },
     { id: 'shrug', json: '/poses/shrug.vrma' },
+    { id: 'think', json: '/poses/think.vrma' },
+    { id: 'clap', json: '/poses/clap.vrma' },
     { id: 'bow', json: '/poses/bow.json' },
   ],
   thinkingPoseEnabled:
