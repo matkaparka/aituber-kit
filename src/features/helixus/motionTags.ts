@@ -18,7 +18,15 @@ export const HELIXUS_MOTION_TAGS = [
 
 export type HelixusMotionTag = (typeof HELIXUS_MOTION_TAGS)[number]
 
-const motionPath = (tag: string) => `/poses/${tag}.vrma`
+const motionPath = (name: string) => `/poses/${name}.vrma`
+
+/** 同一个标签的所有版本：nod.vrma、nod_2.vrma、nod_3.vrma… */
+const variantsOf = (tag: string, available: Set<string>) =>
+  [...available].filter(
+    (n) =>
+      n === tag ||
+      (n.startsWith(tag + '_') && /^\d+$/.test(n.slice(tag.length + 1)))
+  )
 
 let availablePromise: Promise<Set<string>> | null = null
 
@@ -44,6 +52,7 @@ export function loadAvailableMotions(): Promise<Set<string>> {
 }
 
 const warned = new Set<string>()
+const lastPick = new Map<string, string>()
 
 /** 标签 → PoseConfigItem；不在表里或文件不存在时返回 null */
 export async function resolveMotionTag(
@@ -58,18 +67,25 @@ export async function resolveMotionTag(
     return null
   }
   const available = await loadAvailableMotions()
-  if (!available.has(id)) {
+  const variants = variantsOf(id, available)
+  if (variants.length === 0) {
     if (!warned.has(id)) {
       warned.add(id)
       logger.log(`helixus-motion: no file for "${id}" yet, skipped`)
     }
     return null
   }
-  return { id, json: motionPath(id) }
+  // 有多个版本时随机选一个，尽量不和上次一样
+  let pick = variants[Math.floor(Math.random() * variants.length)]
+  if (variants.length > 1 && pick === lastPick.get(id)) {
+    pick = variants[(variants.indexOf(pick) + 1) % variants.length]
+  }
+  lastPick.set(id, pick)
+  return { id: pick, json: motionPath(pick) }
 }
 
 /** 当前有文件的标签（按表的顺序），给系统提示词用 */
 export async function availableMotionTags(): Promise<string[]> {
   const available = await loadAvailableMotions()
-  return HELIXUS_MOTION_TAGS.filter((t) => available.has(t))
+  return HELIXUS_MOTION_TAGS.filter((t) => variantsOf(t, available).length > 0)
 }
