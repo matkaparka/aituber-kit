@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger'
+import { availableMotionTags } from '@/features/helixus/motionTags' // helixus-motion
 import { Message } from '@/features/messages/messages'
 import { judgeSlide } from '@/features/slide/slideAIHelpers'
 import homeStore from '@/features/stores/home'
@@ -237,15 +238,10 @@ export const handleSendChatFn =
         homeStore.setState({ modalImage: '' })
       }
 
-      // ポーズ設定からモーションタグ情報をシステムプロンプトに追加
-      const poseConfigs = ss.poseConfigs
-      if (poseConfigs.length > 0) {
-        const motionIds = poseConfigs.map((p) => p.id).join(', ')
-        systemPrompt +=
-          '\n\nモーションタグを使うことで、キャラクターのポーズを制御できます。' +
-          `利用可能なモーション: ${motionIds}\n` +
-          '書式: [motion:モーション名]  例: [motion:think]\n' +
-          '感情タグと併用可能です。例: [happy][motion:cheer]やったー！'
+      // helixus-motion: 只列出固定标签表里、public/poses 已有文件的标签（用法说明写在角色提示词里）
+      const motionIds = await availableMotionTags()
+      if (motionIds.length > 0) {
+        systemPrompt += `\n\n当前可用的动作标签（只能用这些）：${motionIds.join(', ')}`
       }
 
       // IndexedDBから関連する過去の記憶を検索してsystemPromptに追加

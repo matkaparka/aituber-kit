@@ -14,7 +14,7 @@ import { EmoteController } from '../emoteController/emoteController'
 import { LiveLayer } from '../emoteController/liveLayer' // helixus-live
 import { Talk } from '../messages/messages'
 import { PoseManager } from '@/lib/VRMAnimation/poseManager'
-import settingsStore from '@/features/stores/settings'
+import { resolveMotionTag } from '@/features/helixus/motionTags' // helixus-motion
 import type { PlaybackObserver } from '../messages/characterRenderer'
 
 /**
@@ -104,14 +104,7 @@ export class Model {
     this.emoteController?.playEmotion(talk.emotion)
 
     if (talk.motion) {
-      const poseConfig = settingsStore
-        .getState()
-        .poseConfigs.find((p) => p.id === talk.motion)
-      if (poseConfig) {
-        void this.poseManager
-          .applyPose(this, talk.motion, poseConfig)
-          .catch((e) => logger.error('Failed to apply pose:', e))
-      }
+      this.playMotionTag(talk.motion) // helixus-motion
     } else if (this.poseManager.isActive) {
       // モーション指定なしの発話ではアクティブなポーズをリセット
       this.poseManager.resetToIdle(this)
@@ -140,14 +133,7 @@ export class Model {
     this.emoteController?.playEmotion(talk.emotion)
 
     if (talk.motion) {
-      const poseConfig = settingsStore
-        .getState()
-        .poseConfigs.find((p) => p.id === talk.motion)
-      if (poseConfig) {
-        void this.poseManager
-          .applyPose(this, talk.motion, poseConfig)
-          .catch((e) => logger.error('Failed to apply pose:', e))
-      }
+      this.playMotionTag(talk.motion) // helixus-motion
     } else if (this.poseManager.isActive) {
       this.poseManager.resetToIdle(this)
     }
@@ -158,6 +144,16 @@ export class Model {
       sampleRate,
       observer?.onPlaybackStart
     )
+  }
+
+  // helixus-motion: 标签按 motionTags.ts 的固定表映射到 /poses/<tag>.vrma，没有文件就跳过
+  private playMotionTag(tag: string) {
+    void resolveMotionTag(tag)
+      .then((poseConfig) => {
+        if (!poseConfig) return
+        return this.poseManager.applyPose(this, poseConfig.id, poseConfig)
+      })
+      .catch((e) => logger.error('Failed to apply pose:', e))
   }
 
   /**
