@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger'
-import { availableMotionTags } from '@/features/helixus/motionTags' // helixus-motion
+import { motionPromptSuffix } from '@/features/helixus/motionTags' // helixus-motion
 import { Message } from '@/features/messages/messages'
 import { judgeSlide } from '@/features/slide/slideAIHelpers'
 import homeStore from '@/features/stores/home'
@@ -239,10 +239,8 @@ export const handleSendChatFn =
       }
 
       // helixus-motion: 只列出固定标签表里、public/poses 已有文件的标签（用法说明写在角色提示词里）
-      const motionIds = await availableMotionTags()
-      if (motionIds.length > 0) {
-        systemPrompt += `\n\n当前可用的动作标签（只能用这些）：${motionIds.join(', ')}`
-      }
+      // helixus-dance: 再附上跳舞能不能跳（冷却中让他按人设拒绝）
+      systemPrompt += await motionPromptSuffix()
 
       // IndexedDBから関連する過去の記憶を検索してsystemPromptに追加
       const memoryContext = await searchMemoryContext(newMessage)

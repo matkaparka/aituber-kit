@@ -3,6 +3,7 @@
 // 文件还不存在的标签直接跳过，不报错。
 import { logger } from '@/lib/logger'
 import type { PoseConfigItem } from '@/features/stores/settings'
+import { dancePromptLine } from './dance'
 
 export const HELIXUS_MOTION_TAGS = [
   'nod',
@@ -94,4 +95,22 @@ export async function resolveMotionTag(
 export async function availableMotionTags(): Promise<string[]> {
   const available = await loadAvailableMotions()
   return HELIXUS_MOTION_TAGS.filter((t) => variantsOf(t, available).length > 0)
+}
+
+/**
+ * 追加到系统提示词末尾的动作说明：可用标签列表 + 跳舞（helixus-dance）。
+ * 能跳时 dance 进列表并附用法；冷却中不进列表，附一句让他按人设拒绝
+ */
+export async function motionPromptSuffix(): Promise<string> {
+  const [ids, danceLine] = await Promise.all([
+    availableMotionTags(),
+    dancePromptLine(),
+  ])
+  const tags = danceLine.startsWith('[motion:dance]') ? [...ids, 'dance'] : ids
+  let s = ''
+  if (tags.length > 0) {
+    s += `\n\n当前可用的动作标签（只能用这些）：${tags.join(', ')}`
+  }
+  if (danceLine) s += `\n${danceLine}`
+  return s
 }

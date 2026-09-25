@@ -27,6 +27,7 @@ import toastStore from '@/features/stores/toast'
 import { usePresetLoader } from '@/features/presets/usePresetLoader'
 import { useLive2DEnabled } from '@/hooks/useLive2DEnabled'
 import { SeoSummary } from '@/components/seoSummary'
+import HelixusDanceCredit from '@/components/helixusDanceCredit' // helixus-dance
 
 const Home = () => {
   const webcamStatus = homeStore((s) => s.webcamStatus)
@@ -142,6 +143,7 @@ const Home = () => {
         <GameCommentaryManager />
       </div>
       <KioskOverlay />
+      <HelixusDanceCredit />
     </div>
   )
 }

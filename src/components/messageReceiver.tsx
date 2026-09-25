@@ -10,7 +10,13 @@ import homeStore from '@/features/stores/home'
 import { Message } from '@/features/messages/messages'
 import { useRestrictedMode } from '@/hooks/useRestrictedMode'
 import { SpeakQueue } from '@/features/messages/speakQueue'
-import { availableMotionTags } from '@/features/helixus/motionTags' // helixus-motion
+import { motionPromptSuffix } from '@/features/helixus/motionTags' // helixus-motion
+import {
+  DANCE_REQUEST_PREFIX,
+  danceStore,
+  handleDanceRequest,
+  isDancing,
+} from '@/features/helixus/dance' // helixus-dance
 import type {
   PresentationAssignment,
   PresentationControlAction,
@@ -174,6 +180,10 @@ const MessageReceiver = () => {
               }
             }
 
+            // helixus-dance: 弹幕桥的礼物点舞（【点舞】开头；桥会把观众文字里的【】换掉，伪造不了）
+            if (message.message.startsWith(DANCE_REQUEST_PREFIX)) {
+              message.message = await handleDanceRequest(message.message)
+            }
             const conversationHistory = [
               ...hs.chatLog.slice(-10),
               { role: 'user', content: message.message },
@@ -185,10 +195,7 @@ const MessageReceiver = () => {
               : message.systemPrompt
             // helixus-motion: 外部 ai_generate（弹幕桥）也带上可用动作标签，和 sendChatHandler 一致
             if (systemPrompt) {
-              const motionIds = await availableMotionTags()
-              if (motionIds.length > 0) {
-                systemPrompt += `\n\n当前可用的动作标签（只能用这些）：${motionIds.join(', ')}`
-              }
+              systemPrompt += await motionPromptSuffix()
             }
             const messages: Message[] = [
               {
@@ -517,6 +524,7 @@ const MessageReceiver = () => {
               connected: true,
               isSpeaking: hs.isSpeaking,
               chatProcessing: hs.chatProcessing,
+              helixusDancing: isDancing(), // helixus-dance: 弹幕桥据此暂停转发
               messageReceiverEnabled: ss.messageReceiverEnabled,
               modelType: ss.modelType,
               aiService: ss.selectAIService,
@@ -764,6 +772,15 @@ const MessageReceiver = () => {
       }
     )
 
+    // helixus-dance: 开始 / 结束跳舞时立刻上报，不等 2 秒一次的定时上报
+    const unsubscribeDanceStatus = danceStore.subscribe(
+      (state, previousState) => {
+        if ((state.phase === 'idle') !== (previousState.phase === 'idle')) {
+          void safeReportStatus()
+        }
+      }
+    )
+
     const claimClientTabLeadership = () => {
       if (document.visibilityState !== 'visible') return
       writeClientTabLease()
@@ -861,6 +878,7 @@ const MessageReceiver = () => {
       clearInterval(leaseIntervalId)
       unsubscribePresentationStatus()
       unsubscribeSpeechStatus()
+      unsubscribeDanceStatus()
       window.removeEventListener('focus', claimClientTabLeadership)
       window.removeEventListener('storage', handleStorage)
       window.removeEventListener('beforeunload', releaseClientTabLease)

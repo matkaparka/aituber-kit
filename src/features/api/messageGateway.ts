@@ -86,6 +86,7 @@ export interface ClientStatus {
   isSpeaking: boolean
   activeSpeech?: { id: string; text: string } | null
   chatProcessing: boolean
+  helixusDancing?: boolean // helixus-dance: 在跳舞（含排队等跳、跳完等 LLM 开口），弹幕桥暂停转发
   messageReceiverEnabled?: boolean
   modelType?: string
   aiService?: string

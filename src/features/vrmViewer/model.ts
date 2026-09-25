@@ -16,6 +16,7 @@ import { Talk } from '../messages/messages'
 import { PoseManager } from '@/lib/VRMAnimation/poseManager'
 import { resolveMotionTag } from '@/features/helixus/motionTags' // helixus-motion
 import { MotionDirector } from '@/features/helixus/motionDirector' // helixus-motion
+import { DanceController } from '@/features/helixus/dance' // helixus-dance
 import type { PlaybackObserver } from '../messages/characterRenderer'
 
 /**
@@ -31,6 +32,7 @@ export class Model {
   public poseManager: PoseManager
   public liveLayer?: LiveLayer // helixus-live
   public motionDirector?: MotionDirector // helixus-motion
+  public dance?: DanceController // helixus-dance
   private _audioActive = 0 // helixus-motion: 正在播放的语音数
 
   private _lookAtTargetParent: THREE.Object3D
@@ -63,6 +65,12 @@ export class Model {
     this.motionDirector = new MotionDirector(this.mixer, vrm)
     void this.motionDirector.loadTalkClips()
     void this.motionDirector.loadIdleClips()
+    this.dance = new DanceController(
+      vrm,
+      this.mixer,
+      this.motionDirector,
+      () => this._audioActive > 0
+    )
     if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
       // 开发模式调试入口：控制台里用 __helixusModel.speak(...) 直接测动作
       ;(window as unknown as { __helixusModel?: Model }).__helixusModel = this
@@ -83,6 +91,8 @@ export class Model {
       VRMUtils.deepDispose(this.vrm.scene)
       this.vrm = null
       this.liveLayer = undefined // helixus-live
+      this.dance?.stop() // helixus-dance
+      this.dance = undefined
     }
   }
 
@@ -118,6 +128,7 @@ export class Model {
     isNeedDecode: boolean = true,
     observer?: PlaybackObserver
   ) {
+    await this.dance?.waitIdle() // helixus-dance: 跳舞期间 TTS 暂停，跳完接着念
     this.emoteController?.playEmotion(talk.emotion)
 
     if (talk.motion) {
@@ -152,6 +163,7 @@ export class Model {
     sampleRate: number,
     observer?: PlaybackObserver
   ) {
+    await this.dance?.waitIdle() // helixus-dance
     this.emoteController?.playEmotion(talk.emotion)
 
     if (talk.motion) {
@@ -175,12 +187,33 @@ export class Model {
 
   // helixus-motion: 标签按 motionTags.ts 的固定表映射到 /poses/<tag>.vrma，没有文件就跳过
   private playMotionTag(tag: string) {
+    // helixus-dance: [motion:dance] 不是一个动作文件，而是请求跳舞（这轮话说完后开跳）
+    if (tag.trim().toLowerCase() === 'dance') {
+      void this.dance?.request({ source: 'tag' }).then((r) => {
+        if (r !== 'ok') {
+          logger.log(`helixus-dance: [motion:dance] ignored (${r})`)
+        }
+      })
+      return
+    }
     void resolveMotionTag(tag)
       .then((poseConfig) => {
         if (!poseConfig) return
         return this.poseManager.applyPose(this, poseConfig.id, poseConfig)
       })
       .catch((e) => logger.error('Failed to apply pose:', e))
+  }
+
+  /** helixus-dance: 开发用，控制台直接播指定的舞（不受冷却和 enabled 限制） */
+  public async playDance(name: string) {
+    const r = await this.dance?.request({ source: 'dev', name })
+    logger.log(`helixus-dance: playDance('${name}') -> ${r}`)
+    return r
+  }
+
+  /** helixus-dance: 紧急停舞（0.5 秒淡出，不发收尾消息） */
+  public stopDance() {
+    this.dance?.stop()
   }
 
   /**
@@ -209,8 +242,10 @@ export class Model {
     }
 
     this.emoteController?.update(delta)
+    this.dance?.update() // helixus-dance: 按音频时钟设置舞蹈时间，要在 director / mixer 之前
     this.motionDirector?.update(delta, this._audioActive > 0) // helixus-motion
     this.mixer?.update(delta)
+    this.dance?.afterMixer() // helixus-dance: 根骨骼水平位移限幅
 
     if (this.poseYRotationOffset !== 0 && this.vrm) {
       const hipsNode = this.vrm.humanoid.getNormalizedBoneNode('hips')
@@ -225,12 +260,17 @@ export class Model {
 
     // helixus-live: 动画之后、渲染之前叠加程序动作
     this.liveLayer?.update(delta, {
-      emotion: this.emoteController?.currentEmotion ?? 'neutral',
+      // helixus-dance: 跳舞时表情固定开心
+      emotion:
+        this.dance?.faceOverride ??
+        this.emoteController?.currentEmotion ??
+        'neutral',
       idleWeight: this.motionDirector
         ? this.motionDirector.idleWeight
         : this.currentAction
           ? this.currentAction.getEffectiveWeight()
           : 1,
+      bodyYield: this.motionDirector?.danceWeight ?? 0, // helixus-dance
       externalVolume: this.externalLipSyncVolume,
     })
 

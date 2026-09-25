@@ -233,6 +233,7 @@ interface BoneSlot {
 export interface LiveState {
   emotion: string
   idleWeight: number // 待机动作当前的权重：播放动作标签的 VRMA 时会降到 0，身体层随之让开
+  bodyYield?: number // helixus-dance: 0–1，跳舞时身体层（含头）整体让开的比例
   externalVolume: number | null
 }
 
@@ -351,7 +352,12 @@ export class LiveLayer {
 
     if (accent > 0) this.onAccent(accent, emotion)
     this.updateGaze(dt, talking, phraseStart, phraseEnd)
-    this.updateBody(dt, clamp(state.idleWeight, 0, 1), talking)
+    this.updateBody(
+      dt,
+      clamp(state.idleWeight, 0, 1),
+      talking,
+      clamp(state.bodyYield ?? 0, 0, 1)
+    )
     this.updateFace(dt, emotion, talking, phraseStart || phraseEnd)
   }
 
@@ -441,8 +447,13 @@ export class LiveLayer {
   }
 
   // ---------------------------------------------------------------- 身体
-  private updateBody(dt: number, idleW: number, talking: boolean) {
-    const S = LIVE.bodyScale
+  private updateBody(
+    dt: number,
+    idleW: number,
+    talking: boolean,
+    bodyYield = 0
+  ) {
+    const S = LIVE.bodyScale * (1 - bodyYield)
     const torsoW = S * (0.5 + 0.5 * idleW)
     const armW = S * idleW
     const t = this.time

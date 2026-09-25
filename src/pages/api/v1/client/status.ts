@@ -103,6 +103,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
       : {}),
     chatProcessing: req.body?.chatProcessing === true,
+    helixusDancing: req.body?.helixusDancing === true, // helixus-dance
     messageReceiverEnabled: req.body?.messageReceiverEnabled === true,
     modelType:
       typeof req.body?.modelType === 'string' ? req.body.modelType : undefined,

@@ -109,3 +109,9 @@ promo-video/*
 public/poses/arrogant.vrma
 public/poses/exercise.vrma
 public/poses/turnaround.vrma
+
+# helixus-dance: BOOTH 的舞蹈动作和配乐不可再分发，只留在本地（meta.json 进 git）
+public/dance/*/*.vrma
+public/dance/*/*.ogg
+public/dance/*/*.mp3
+public/dance/*/*.wav

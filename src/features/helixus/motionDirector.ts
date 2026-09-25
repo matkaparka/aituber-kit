@@ -23,9 +23,19 @@ export const MOTION = {
   baseFade: 0.35, // 从非默认站姿（抱臂等）回到底姿，再开始说话 / 标签动作
   idleSwitch: [180, 360] as [number, number], // 待机站姿轮换间隔（秒）
   defaultIdle: '/idle_loop.vrma',
+
+  // 跳舞（public/dance/<名字>/，见 dance.ts）
+  danceCooldown: 600, // 两次跳舞之间的冷却（秒），从上一支跳完算起
+  danceFadeIn: 1.0, // 从待机淡入舞蹈第 0 帧（秒）；音乐在淡入结束时按 offset 起播
+  danceFadeOut: 1.5, // 舞蹈最后这么多秒淡回默认底姿，音乐同时淡出
+  danceRootClamp: 0.35, // 根骨骼（hips）水平位移上限（米），超出部分软压回去
+  danceRootScale: 1.0, // 水平位移先整体乘这个倍率，再做上限
+  danceSpringDrag: 0.5, // 跳舞期间弹簧骨阻尼：dragForce 往 1 靠这么多（0 = 不改）
+  danceSpringStiffness: 1.5, // 跳舞期间弹簧骨 stiffness 倍率
+  dancePendingTimeout: 90, // 等这轮话说完再开跳，最多等这么久（秒），超时就取消
 }
 
-type Kind = 'idle' | 'talk' | 'oneshot'
+type Kind = 'idle' | 'talk' | 'oneshot' | 'dance'
 
 interface Entry {
   kind: Kind
@@ -50,6 +60,8 @@ export class MotionDirector {
   private talk: Entry | null = null
   private oneShot: Entry | null = null
   private oneShotDone?: () => void
+  private dance: Entry | null = null
+  private danceFadeIn = MOTION.danceFadeIn
   private external = 0
   private externalTarget = 0
   private silentFor = Infinity
@@ -180,6 +192,7 @@ export class MotionDirector {
   get isIdle(): boolean {
     return (
       !this.oneShot &&
+      !this.dance &&
       this.externalTarget === 0 &&
       this.silentFor > MOTION.release &&
       this.entries.every(
@@ -217,6 +230,43 @@ export class MotionDirector {
     return this.oneShot !== null
   }
 
+  // ------------------------------------------------------------ 跳舞
+  /**
+   * 舞蹈动作的时间由 dance.ts 按音频时钟每帧直接设置（action.time），这里只管权重：
+   * 先回默认底姿，再用 fadeIn 淡入；期间 talk 轮播、待机轮换、标签动作都让开
+   */
+  playDance(action: THREE.AnimationAction, fadeIn: number) {
+    this.stopOneShot()
+    action.setLoop(THREE.LoopOnce, 1)
+    action.clampWhenFinished = true
+    action.reset()
+    action.paused = true
+    action.time = 0
+    action.play()
+    this.danceFadeIn = Math.max(fadeIn, 0.01)
+    const e = this.add('dance', action, this.danceFadeIn)
+    e.target = 0 // 回底姿结束后由 setTargets('dance') 拉起来
+    this.dance = e
+  }
+
+  /** 舞蹈淡出，同时默认底姿淡入（两边同速，权重和保持 1） */
+  stopDance(fadeOut: number) {
+    if (!this.dance) return
+    const f = Math.max(fadeOut, 0.01)
+    for (const e of this.entries) {
+      e.target = e === this.idle ? 1 : 0
+      e.fade = f
+    }
+    this.dance = null
+  }
+
+  get danceActive(): boolean {
+    return this.dance !== null
+  }
+
+  /** 舞蹈当前的实际权重（含淡出中的），liveLayer 的身体层按它让开 */
+  danceWeight = 0
+
   // ------------------------------------------------------------ json 静态姿势
   /** poseManager 的 json 姿势接管身体时调用 true，放回时调用 false */
   setExternal(on: boolean) {
@@ -236,11 +286,13 @@ export class MotionDirector {
         void this.switchIdle()
       }
     }
-    const wantTalk = this.silentFor < MOTION.release && this.clips.length > 0
+    // 跳舞期间不轮播 talk（TTS 也被 dance.ts 暂停了，这里再保险一次）
+    const wantTalk =
+      !this.dance && this.silentFor < MOTION.release && this.clips.length > 0
 
     // 非默认站姿（抱臂等）直接和说话 / 标签动作混合时，中间姿势会让前臂穿过胸甲
     // （Blender 里实测：抱臂 → laugh 半程穿入 15 cm）。所以先回到底姿，再开始
-    const busy = !!this.oneShot || wantTalk
+    const busy = !!this.oneShot || wantTalk || !!this.dance
     if (
       busy &&
       this.defaultIdleAction &&
@@ -269,6 +321,8 @@ export class MotionDirector {
 
     if (settling) {
       this.setTargets('idle')
+    } else if (this.dance) {
+      this.setTargets('dance', this.danceFadeIn)
     } else if (this.oneShot) {
       this.setTargets('oneshot')
     } else if (wantTalk) {
@@ -316,6 +370,7 @@ export class MotionDirector {
         e.target > 0 ||
         e === this.idle ||
         e === this.oneShot || // 回底姿期间标签动作权重为 0，但还在排队，不能清掉
+        e === this.dance ||
         (e.kind === 'talk' && e.idleAge < MOTION.resumeWindow)
       if (!keep) {
         e.action.stop()
@@ -333,13 +388,16 @@ export class MotionDirector {
     const sum = this.entries.reduce((s, e) => s + e.w, 0)
     const share = 1 - this.external
     let idleW = 0
+    let danceW = 0
     for (const e of this.entries) {
       const w = sum > 1e-4 ? (e.w / sum) * share : e === this.idle ? share : 0
       e.action.setEffectiveWeight(w)
       e.action.enabled = true
       if (e.kind === 'idle') idleW += w
+      if (e.kind === 'dance') danceW += w
     }
     this.idleWeight = idleW
+    this.danceWeight = danceW
   }
 
   // ------------------------------------------------------------ 内部
@@ -349,19 +407,21 @@ export class MotionDirector {
     return e
   }
 
-  /** 目标变了的动作统一用 talkFade 过渡：淡入淡出同速，权重和保持 1 */
-  private setTargets(active: Kind) {
+  /** 目标变了的动作统一用同一个过渡时间（默认 talkFade）：淡入淡出同速，权重和保持 1 */
+  private setTargets(active: Kind, fade = MOTION.talkFade) {
     for (const e of this.entries) {
       const on =
         active === 'oneshot'
           ? e === this.oneShot
           : active === 'talk'
             ? e === this.talk
-            : e === this.idle
+            : active === 'dance'
+              ? e === this.dance
+              : e === this.idle
       const target = on ? 1 : 0
       if (e.target !== target) {
         e.target = target
-        e.fade = MOTION.talkFade
+        e.fade = fade
       }
     }
   }
