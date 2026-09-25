@@ -140,6 +140,15 @@ export const routePolicies = {
     secret: { kind: 'none' },
     restrictedBehavior: 'deny',
   },
+  // helixus-dance: 微调面板写回 public/dance/<名字>/meta.json（开发模式、本机访问）
+  '/api/dance-meta': {
+    path: '/api/dance-meta',
+    featureName: 'dance-meta',
+    methods: ['POST'],
+    resources: ['fs-write'],
+    secret: { kind: 'none' },
+    restrictedBehavior: 'deny',
+  },
   '/api/delete-image': {
     path: '/api/delete-image',
     featureName: 'delete-image',

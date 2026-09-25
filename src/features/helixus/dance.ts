@@ -175,6 +175,9 @@ export class DanceController {
   private afterUntil = 0
   private requester?: string
   private noOutro = false
+  private tuning = false // 微调面板的试播：不发收尾消息、不计冷却
+  private offset = 0
+  private musicStart = 0 // 音乐起播时刻（音频时钟）；微调 offset 时音乐不动，挪动作
   private token = 0
   private springBackup = new Map<
     VRMSpringBoneJoint,
@@ -205,6 +208,7 @@ export class DanceController {
     source: 'tag' | 'gift' | 'dev'
     name?: string
     requester?: string
+    tuning?: boolean
   }): Promise<DanceRequestResult> {
     if (isDancing()) return 'busy'
     const force = opts.source === 'dev'
@@ -225,7 +229,8 @@ export class DanceController {
     if (!force && danceCooldownLeft() > 0) return 'cooldown'
     if (isDancing()) return 'busy' // 读列表期间别处已经开始了
     this.requester = opts.requester
-    this.noOutro = false
+    this.tuning = !!opts.tuning
+    this.noOutro = this.tuning
     this.pendingSince = performance.now()
     danceStore.setState({ phase: 'pending', current: pick })
     logger.log(`helixus-dance: ${pick.name} requested (${opts.source})`)
@@ -241,6 +246,35 @@ export class DanceController {
     } else if (phase === 'playing') {
       this.noOutro = true
       this.beginEnding(0.5)
+    }
+  }
+
+  /**
+   * 微调面板用：播放中实时改 offset / speed。音乐已经按原 offset 起播、不再移动，
+   * 所以改 offset 挪的是动作时间轴（动作时间 = (音乐时间 + offset) × speed）
+   */
+  tune(p: { offset?: number; speed?: number }) {
+    if (p.offset !== undefined) {
+      this.offset = p.offset
+      this.t0 = this.musicStart - p.offset
+    }
+    if (p.speed !== undefined && p.speed > 0) this.speed = p.speed
+  }
+
+  /** 当前播放位置（微调面板显示用）；没在跳时 null */
+  get playback(): {
+    offset: number
+    speed: number
+    motionTime: number
+    duration: number
+  } | null {
+    const phase = danceStore.getState().phase
+    if (phase !== 'playing' && phase !== 'ending') return null
+    return {
+      offset: this.offset,
+      speed: this.speed,
+      motionTime: Math.max(0, this.clock() - this.t0) * this.speed,
+      duration: this.duration,
     }
   }
 
@@ -361,6 +395,8 @@ export class DanceController {
       const now = this.clock()
       // 动作第 0 帧在 t0；音乐在 t0 + offset 起播（offset 为负时整体推后，保证两者都在将来）
       this.t0 = now + MOTION.danceFadeIn + Math.max(0, -m.offset)
+      this.offset = m.offset
+      this.musicStart = this.t0 + m.offset
       if (buffer) {
         const source = ctx.createBufferSource()
         source.buffer = buffer
@@ -450,11 +486,14 @@ export class DanceController {
     this.music = undefined
     this.action = undefined
     const info = danceStore.getState().current
-    const lastEndAt = Date.now()
-    try {
-      window.localStorage.setItem(LAST_END_KEY, String(lastEndAt))
-    } catch {
-      // 存不了就只在这次页面里记
+    // 微调试播不算一次跳舞，不开始冷却
+    const lastEndAt = this.tuning ? danceStore.getState().lastEndAt : Date.now()
+    if (!this.tuning) {
+      try {
+        window.localStorage.setItem(LAST_END_KEY, String(lastEndAt))
+      } catch {
+        // 存不了就只在这次页面里记
+      }
     }
     logger.log(`helixus-dance: ${info?.name} finished`)
     if (this.noOutro || !info) {

@@ -1,9 +1,9 @@
 {
-  "title": "愛包ダンスホール",
-  "offset": 0.0,
-  "bpm": 0,
-  "speed": 1.0,
-  "volume": 1.0,
-  "credit": "",
-  "enabled": false
+  "title": "愛包ダンスホール（Golden Scale Groove）",
+  "offset": 0.26,
+  "bpm": 141,
+  "speed": 1,
+  "volume": 1,
+  "credit": "モーション: 八ツ橋まろん",
+  "enabled": true
 }

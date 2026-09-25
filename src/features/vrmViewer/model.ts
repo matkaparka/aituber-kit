@@ -204,9 +204,12 @@ export class Model {
       .catch((e) => logger.error('Failed to apply pose:', e))
   }
 
-  /** helixus-dance: 开发用，控制台直接播指定的舞（不受冷却和 enabled 限制） */
-  public async playDance(name: string) {
-    const r = await this.dance?.request({ source: 'dev', name })
+  /**
+   * helixus-dance: 开发用，控制台直接播指定的舞（不受冷却和 enabled 限制）。
+   * tuning=true 是微调面板的试播：不发收尾消息、不开始冷却
+   */
+  public async playDance(name: string, opts: { tuning?: boolean } = {}) {
+    const r = await this.dance?.request({ source: 'dev', name, ...opts })
     logger.log(`helixus-dance: playDance('${name}') -> ${r}`)
     return r
   }

@@ -28,6 +28,7 @@ import { usePresetLoader } from '@/features/presets/usePresetLoader'
 import { useLive2DEnabled } from '@/hooks/useLive2DEnabled'
 import { SeoSummary } from '@/components/seoSummary'
 import HelixusDanceCredit from '@/components/helixusDanceCredit' // helixus-dance
+import HelixusDanceTuner from '@/components/helixusDanceTuner' // helixus-dance
 
 const Home = () => {
   const webcamStatus = homeStore((s) => s.webcamStatus)
@@ -144,6 +145,7 @@ const Home = () => {
       </div>
       <KioskOverlay />
       <HelixusDanceCredit />
+      <HelixusDanceTuner />
     </div>
   )
 }
