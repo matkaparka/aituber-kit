@@ -39,7 +39,8 @@ const JA_ONLY_VOICES: AIVoice[] = [
   'koeiromap',
   'aivis_speech',
   'aivis_cloud_api',
-  'gsvitts',
+  // helixus: gsvitts（GPT-SoVITS）は中国語も話せるので除外。含めると中国語 UI で
+  // ページを開くたびに Google TTS へ切り替わってしまう
 ]
 
 export const exclusionRules: ExclusionRule[] = [

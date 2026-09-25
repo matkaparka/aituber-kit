@@ -309,6 +309,17 @@ describe('排他エンジン (computeExclusions)', () => {
 
       expect(corrections.selectVoice).toBeUndefined()
     })
+
+    it('gsvitts（GPT-SoVITS）は中国語でも変更しない', () => {
+      const prev = createBaseState({
+        selectLanguage: 'ja',
+        selectVoice: 'gsvitts',
+      })
+      const incoming = { selectLanguage: 'zh-CN' as const }
+      const { corrections } = computeExclusions(incoming, prev)
+
+      expect(corrections.selectVoice).toBeUndefined()
+    })
   })
 
   describe('Rule 12: google-searchGrounding', () => {
