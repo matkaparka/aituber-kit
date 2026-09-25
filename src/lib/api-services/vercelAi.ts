@@ -3,7 +3,7 @@ import { Message } from '@/features/messages/messages'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createXai } from '@ai-sdk/xai'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createGoogleGenerativeAI, google } from '@ai-sdk/google'
 import { createCohere } from '@ai-sdk/cohere'
 import { createMistral } from '@ai-sdk/mistral'
 import { createAzure } from '@ai-sdk/azure'
@@ -20,6 +20,7 @@ import {
   LanguageModel,
 } from 'ai'
 import { VercelAIService } from '@/features/constants/settings'
+import { logChatRound } from '@/lib/api-services/chatRoundLog'
 
 /**
  * プロバイダー作成に必要なパラメータ
@@ -128,22 +129,9 @@ export function createAIRegistry(
 export function getLanguageModel(
   registry: AIRegistry,
   service: VercelAIService,
-  model: string,
-  options?: Record<string, unknown>
+  model: string
 ): LanguageModel {
   const modelId = `${service}:${model}`
-
-  if (options && Object.keys(options).length > 0) {
-    // オプションがある場合（例：Google Search Grounding）
-    // registryから直接プロバイダーを取得してオプション付きでモデルを作成
-    const provider = (registry as unknown as Record<string, CallableFunction>)[
-      service
-    ]
-    if (provider) {
-      return provider(model, options) as LanguageModel
-    }
-  }
-
   return registry.languageModel(modelId as `${string}:${string}`)
 }
 
@@ -157,7 +145,7 @@ export async function streamAiText({
   messages,
   temperature,
   maxTokens,
-  options = {},
+  searchGrounding = false,
   providerOptions,
 }: {
   model: string
@@ -166,22 +154,78 @@ export async function streamAiText({
   messages: Message[]
   temperature: number
   maxTokens: number
-  options?: Record<string, unknown>
+  searchGrounding?: boolean
   providerOptions?: Record<string, Record<string, unknown>>
 }) {
   try {
-    const languageModel = getLanguageModel(registry, service, model, options)
+    const languageModel = getLanguageModel(registry, service, model)
+
+    // Google検索グラウンディング（@ai-sdk/google v2以降はprovider toolとして渡す）
+    const searchEnabled = service === 'google' && searchGrounding
+    const startedAt = Date.now()
+    let firstTokenAt: number | null = null
+    let logged = false
+    const logRound = (
+      status: 'ok' | 'error' | 'aborted',
+      {
+        queries = [],
+        sources = 0,
+        text,
+      }: {
+        queries?: string[]
+        sources?: number
+        text?: string
+      } = {}
+    ) => {
+      if (logged) return
+      logged = true
+      logChatRound({
+        service,
+        model,
+        searchEnabled,
+        queries,
+        sources,
+        firstTokenMs: firstTokenAt === null ? null : firstTokenAt - startedAt,
+        totalMs: Date.now() - startedAt,
+        status,
+        text,
+      })
+    }
 
     const result = await streamText({
       model: languageModel,
       messages: messages as ModelMessage[],
       temperature,
       maxOutputTokens: maxTokens,
+      ...(searchEnabled && {
+        tools: { google_search: google.tools.googleSearch({}) },
+      }),
       ...(providerOptions && {
         providerOptions: providerOptions as Parameters<
           typeof streamText
         >[0]['providerOptions'],
       }),
+      onChunk: ({ chunk }) => {
+        if (firstTokenAt === null && chunk.type === 'text-delta') {
+          firstTokenAt = Date.now()
+        }
+      },
+      onFinish: ({ providerMetadata, sources, text }) => {
+        const grounding = providerMetadata?.google?.groundingMetadata as
+          | { webSearchQueries?: string[] | null }
+          | null
+          | undefined
+        logRound('ok', {
+          queries: grounding?.webSearchQueries ?? [],
+          sources: sources.length,
+          text,
+        })
+      },
+      onError: ({ error }) => {
+        logger.error('Vercel AI Stream Error:', error)
+        logRound('error')
+      },
+      onAbort: () => logRound('aborted'),
     })
 
     return result.toUIMessageStreamResponse()
