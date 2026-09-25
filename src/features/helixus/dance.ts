@@ -133,11 +133,13 @@ const minutes = (sec: number) => Math.max(1, Math.ceil(sec / 60))
 export async function dancePromptLine(): Promise<string> {
   const a = await danceAvailability()
   if (a.ok) {
+    const names = a.dances.map((d) => `${d.name}（${d.meta.title}）`).join('、')
     return (
-      '[motion:dance]：跳一支完整的舞（放音乐，约一两分钟，跳的时候不说话）。' +
+      '[motion:dance]：跳一支完整的舞（放音乐，约半分钟，跳的时候不说话）。' +
       '只在观众明确要你跳舞时用，一次回复最多一次；和别的动作标签一样写在句子开头，' +
       '放在最后一句话的开头，例如「[happy][motion:dance]看好了，小东西。」（不要写在句子末尾，末尾的标签会被忽略）。' +
-      '跳完系统会提醒你收尾。'
+      `现在能跳的舞：${names}。观众点名要某一支时写 [motion:dance:名字]，例如 [motion:dance:${a.dances[0].name}]；` +
+      '没点名就写 [motion:dance]，随机挑一支。跳完系统会提醒你收尾。'
     )
   }
   if (a.reason === 'cooldown') {

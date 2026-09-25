@@ -187,13 +187,24 @@ export class Model {
 
   // helixus-motion: 标签按 motionTags.ts 的固定表映射到 /poses/<tag>.vrma，没有文件就跳过
   private playMotionTag(tag: string) {
-    // helixus-dance: [motion:dance] 不是一个动作文件，而是请求跳舞（这轮话说完后开跳）
-    if (tag.trim().toLowerCase() === 'dance') {
-      void this.dance?.request({ source: 'tag' }).then((r) => {
-        if (r !== 'ok') {
-          logger.log(`helixus-dance: [motion:dance] ignored (${r})`)
+    // helixus-dance: [motion:dance] / [motion:dance:名字] 不是动作文件，而是请求跳舞（这轮话说完后开跳）。
+    // 名字写错或那支没启用时退回随机挑
+    const dance = tag
+      .trim()
+      .toLowerCase()
+      .match(/^dance(?::([\w-]+))?$/)
+    if (dance) {
+      const name = dance[1]
+      void (async () => {
+        let r = await this.dance?.request({ source: 'tag', name })
+        if (name && (r === 'notfound' || r === 'none')) {
+          logger.log(`helixus-dance: "${name}" not available, random pick`)
+          r = await this.dance?.request({ source: 'tag' })
         }
-      })
+        if (r !== 'ok') {
+          logger.log(`helixus-dance: [motion:${tag}] ignored (${r})`)
+        }
+      })()
       return
     }
     void resolveMotionTag(tag)

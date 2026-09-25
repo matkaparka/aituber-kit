@@ -87,6 +87,8 @@ describe('helixus dance', () => {
       await loadDanceList(0)
       const line = await dancePromptLine()
       expect(line.startsWith('[motion:dance]')).toBe(true)
+      expect(line).toContain('otagei（ヲタ芸）')
+      expect(line).toContain('[motion:dance:otagei]')
     })
 
     it('tells him to refuse during cooldown', async () => {
