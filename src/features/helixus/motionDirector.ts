@@ -25,7 +25,7 @@ export const MOTION = {
   defaultIdle: '/idle_loop.vrma',
 
   // 跳舞（public/dance/<名字>/，见 dance.ts）
-  danceCooldown: 600, // 两次跳舞之间的冷却（秒），从上一支跳完算起
+  danceCooldown: 180, // 两次跳舞之间的冷却（秒），从上一支跳完算起
   danceFadeIn: 1.0, // 从待机淡入舞蹈第 0 帧（秒）；音乐在淡入结束时按 offset 起播
   danceFadeOut: 1.5, // 舞蹈最后这么多秒淡回默认底姿，音乐同时淡出
   danceRootClamp: 0.35, // 根骨骼（hips）水平位移上限（米），超出部分软压回去
