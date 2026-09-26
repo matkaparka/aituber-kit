@@ -125,7 +125,12 @@ async function runJob(job: Job) {
     }
   }, 1000)
 
-  let res: { status: string; image_b64?: string; reason?: string }
+  let res: {
+    status: string
+    image_b64?: string
+    reason?: string
+    plan?: { self_portrait?: boolean }
+  }
   try {
     const r = await fetch(`${url}/draw`, {
       method: 'POST',
@@ -154,7 +159,7 @@ async function runJob(job: Job) {
           drawFrameStore.setState({ frame: { kind: 'idle' } })
         }
       }, helixusLiveSettings.getState().drawShowSec * 1000)
-      await reactToImage(job, image)
+      await reactToImage(job, image, res.plan?.self_portrait === true)
     }
     return
   }
@@ -212,7 +217,11 @@ async function shrink(dataUrl: string, maxSide = 512): Promise<string> {
   return c.toDataURL('image/jpeg', 0.8)
 }
 
-async function reactToImage(job: Job, image: string) {
+// 观众让他画自己：这是他的自画像
+const SELF_LINE =
+  '这张画的是你自己，是你的自画像：尽情自恋，夸自己的威严和帅气，顺便嫌弃凡人配不上看。'
+
+async function reactToImage(job: Job, image: string, selfPortrait: boolean) {
   await waitIdle()
   try {
     const ss = settingsStore.getState()
@@ -233,10 +242,10 @@ async function reactToImage(job: Job, image: string) {
     const { handleSendChatFn } = await import('@/features/chat/handlers')
     await handleSendChatFn()(
       canSeeImage
-        ? `【系统】观众「${job.user}」求你画「${job.request}」，你刚亲手画完，已经挂在你身边的画框里，就是附上的这张图。` +
+        ? `【系统】观众「${job.user}」求你画「${job.request}」，你刚亲手画完，已经挂在你身边的画框里，就是附上的这张图。${selfPortrait ? SELF_LINE : ''}` +
             `这是你自己的作品：用你的人设口吻把画赏给他，一两句话。可以自夸画技、嫌弃他点的题材、嘲讽他不配收下，` +
             `也可以对画里不满意的地方找个傲慢的借口（比如怪他的题目太烂）；不要像评别人的画那样挑刺，也不要描述太长。`
-        : `【系统】观众「${job.user}」求你画「${job.request}」，你刚亲手画完，已经挂在你身边的画框里（你这次看不到图）。` +
+        : `【系统】观众「${job.user}」求你画「${job.request}」，你刚亲手画完，已经挂在你身边的画框里（你这次看不到图）。${selfPortrait ? SELF_LINE : ''}` +
             `这是你自己的作品：用你的人设口吻把画赏给他，一两句话，可以自夸、嫌弃题材；不要假装描述画面细节。`
     )
   } catch (e) {
