@@ -5,6 +5,8 @@
 import { create } from 'zustand'
 import { logger } from '@/lib/logger'
 import homeStore from '@/features/stores/home'
+import settingsStore from '@/features/stores/settings'
+import { isMultiModalAvailable } from '@/features/constants/aiModels'
 import { isDancing } from '@/features/helixus/dance'
 import { helixusLiveSettings, helixusModeStore } from './liveSettings'
 
@@ -207,11 +209,28 @@ async function shrink(dataUrl: string, maxSide = 512): Promise<string> {
 async function reactToImage(job: Job, image: string) {
   await waitIdle()
   try {
-    homeStore.setState({ modalImage: await shrink(image) })
+    const ss = settingsStore.getState()
+    const canSeeImage = isMultiModalAvailable(
+      ss.selectAIService,
+      ss.selectAIModel,
+      ss.enableMultiModal,
+      ss.customModel
+    )
+    if (canSeeImage) {
+      homeStore.setState({ modalImage: await shrink(image) })
+    } else {
+      // 否则 handleSendChat 会弹个 toast 就把整条消息丢掉，Helixus 一声不吭
+      logger.warn(
+        'helixus-draw: 当前模型设置不能发图（自定义模型要打开「多模态」开关），只按需求文字锐评'
+      )
+    }
     const { handleSendChatFn } = await import('@/features/chat/handlers')
     await handleSendChatFn()(
-      `【系统】观众「${job.user}」点的画画好了，已经挂在你身边的画框里，就是附上的这张图。` +
-        `他的需求是：「${job.request}」。看图，用你的人设口吻锐评一两句（画得怎样、和需求对不对得上），不要描述太长。`
+      canSeeImage
+        ? `【系统】观众「${job.user}」点的画画好了，已经挂在你身边的画框里，就是附上的这张图。` +
+            `他的需求是：「${job.request}」。看图，用你的人设口吻锐评一两句（画得怎样、和需求对不对得上），不要描述太长。`
+        : `【系统】观众「${job.user}」点的画画好了，已经挂在你身边的画框里（你这次看不到图）。` +
+            `他的需求是：「${job.request}」。用你的人设口吻对这个点子锐评一两句，不要假装描述画面细节。`
     )
   } catch (e) {
     logger.error('helixus-draw: 锐评失败', e)

@@ -39,8 +39,8 @@ export const DEFAULT_HELIXUS_LIVE: HelixusLiveSettings = {
   drawQueueMax: num(process.env.NEXT_PUBLIC_HELIXUS_DRAW_QUEUE_MAX, 3),
   drawMaxChars: num(process.env.NEXT_PUBLIC_HELIXUS_DRAW_MAX_CHARS, 60),
   drawShowSec: num(process.env.NEXT_PUBLIC_HELIXUS_DRAW_SHOW_SEC, 600),
-  drawFrameRect: { left: 5, top: 10, width: 50, height: 75 },
-  drawCharLayout: { x: 10, y: 0, scale: 0.9 },
+  drawFrameRect: { left: 5, top: 8, width: 50, height: 68 },
+  drawCharLayout: { x: 13, y: 0, scale: 0.75 },
   reactionCharLayout: { x: 0, y: 0, scale: 0.45 },
   gameReidentifyMin: num(
     process.env.NEXT_PUBLIC_HELIXUS_GAME_REIDENTIFY_MIN,

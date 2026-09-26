@@ -84,6 +84,13 @@ export function HelixusLive() {
   const rect = helixusLiveSettings((s) => s.drawFrameRect)
   const hasBgImage = useDrawBackground() !== null
 
+  // 直播姬直接拍整个窗口：页面原本就有 w-screen / 100svh 多出来的十几像素滚动条，
+  // 点图 / reaction 平移角色后溢出更多。整页不需要滚动，直接关掉
+  useEffect(() => {
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+  }, [])
+
   // 快捷键
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -137,9 +144,11 @@ export function HelixusLive() {
     width: `${rect.width}vw`,
     height: `${rect.height}vh`,
   }
+  // 画框在角色画布（z-5）之上：触手从画框后面过，不会挡住画
+  // 画框在角色画布（z-5）之上：触手从画框后面过，不会挡住画
   return (
     <div
-      className="absolute z-[2] pointer-events-none flex flex-col"
+      className="absolute z-[6] pointer-events-none flex flex-col"
       style={box}
     >
       <div
