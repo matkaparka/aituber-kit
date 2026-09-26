@@ -2,6 +2,7 @@
 // 标签表固定在这里，不走设置里持久化的 poseConfigs（那份存在浏览器里，和代码对不上）。
 // 文件还不存在的标签直接跳过，不报错。
 import { logger } from '@/lib/logger'
+import { gameContextForChat } from './gameMemory' // helixus-live
 import type { PoseConfigItem } from '@/features/stores/settings'
 import { dancePromptLine } from './dance'
 
@@ -112,5 +113,7 @@ export async function motionPromptSuffix(): Promise<string> {
     s += `\n\n当前可用的动作标签（只能用这些）：${tags.join(', ')}`
   }
   if (danceLine) s += `\n${danceLine}`
+  // helixus-live: reaction 开着时，普通弹幕回复也带上当前游戏和本场经过
+  s += gameContextForChat()
   return s
 }

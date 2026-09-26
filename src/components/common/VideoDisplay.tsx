@@ -49,6 +49,7 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
     const { t } = useTranslation()
     const triggerShutter = homeStore((s) => s.triggerShutter)
     const useVideoAsBackground = settingsStore((s) => s.useVideoAsBackground)
+    const gameCommentaryPlaying = settingsStore((s) => s.gameCommentaryPlaying) // helixus-live
     const hideVideoDisplay = settingsStore((s) => s.hideVideoDisplay)
     const backgroundVideoRef = useRef<HTMLVideoElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -505,7 +506,14 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
           </div>
         </div>
         {(useVideoAsBackground || hideVideoDisplay) && (
-          <div className="fixed top-5 right-5 z-40 pointer-events-auto flex items-center gap-2">
+          <div
+            className={`fixed top-5 right-5 z-40 pointer-events-auto flex items-center gap-2 ${
+              // helixus-live: reaction 模式下这组按钮会被直播姬拍进去，平时隐藏，鼠标移上去才显示
+              gameCommentaryPlaying
+                ? 'opacity-0 hover:opacity-100 transition-opacity'
+                : ''
+            }`}
+          >
             {onStopSource && (
               <IconButton
                 iconName="stop"

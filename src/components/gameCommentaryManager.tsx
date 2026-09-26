@@ -8,6 +8,8 @@ import { logger } from '@/lib/logger'
 import { useGameCommentaryMode } from '@/hooks/useGameCommentaryMode'
 import { useTranslation } from 'react-i18next'
 
+const HIDE_ON_STREAM = true
+
 function GameCommentaryManager(): JSX.Element | null {
   const { t } = useTranslation()
 
@@ -30,7 +32,8 @@ function GameCommentaryManager(): JSX.Element | null {
       },
     })
 
-  if (!isActive || state === 'disabled') {
+  // helixus-live: 直播姬直接拍这个窗口，状态指示也算控制 UI，不显示（逻辑照常跑）
+  if (!isActive || state === 'disabled' || HIDE_ON_STREAM) {
     return null
   }
 

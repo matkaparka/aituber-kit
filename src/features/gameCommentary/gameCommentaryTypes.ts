@@ -23,12 +23,12 @@ export interface GameCommentarySettings {
 export const DEFAULT_GAME_COMMENTARY_CONFIG: GameCommentarySettings = {
   gameCommentaryEnabled: false,
   gameCommentaryPlaying: false,
-  gameCommentaryCaptureInterval: 5,
+  gameCommentaryCaptureInterval: 8, // helixus-live: 控制成本
   gameCommentaryContextCount: 5,
   gameCommentaryPromptTemplate: '',
   gameCommentaryBackgroundAnalysisPromptTemplate: '',
   gameCommentaryImageQuality: 0.7,
-  gameCommentaryResizeWidth: 1024,
+  gameCommentaryResizeWidth: 768, // helixus-live: Gemini 按图块计费，768 约一块（~258 token）
   gameCommentarySaveToChat: true,
   gameCommentaryBackgroundAnalysisEnabled: false,
   gameCommentaryBackgroundAnalysisInterval: 2,

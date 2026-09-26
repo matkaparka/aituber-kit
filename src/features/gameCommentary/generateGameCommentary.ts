@@ -4,6 +4,20 @@ import type { AIChatResponseStreamOptions } from '@/features/chat/aiChatFactory'
 import { THINKING_MARKER } from '@/features/chat/vercelAIChat'
 import { Message, EmotionType, EMOTIONS } from '@/features/messages/messages'
 import settingsStore from '@/features/stores/settings'
+import { gameContextBlock } from '@/features/helixus/gameMemory' // helixus-live
+
+// helixus-live: Helixus 人设的中文实况规则（设置页里的模板留空时用这个）
+export const HELIXUS_COMMENTARY_PROMPT = `【实况规则】你正在直播里看屏幕，屏幕上是那个有机体（玩家）在玩游戏，你边看边实况。
+- 每次只说 1 到 2 句短句，口语，不要念画面上的字，不要重复上一轮说过的话。
+- 以对玩家冷嘲热讽为主：嫌他操作菜、反应慢、决策蠢、磨蹭；他偶尔真打得好，可以极不情愿地认可一句。
+- 保持你自己的人设和口吻，不要变成解说员腔调。
+- 画面看不清或没变化时，就吐槽他发呆、磨蹭。
+
+输出格式（严格遵守，两行）：
+[情绪]台词
+[scene]一两句客观描述当前画面（给你下一轮参考，不会念出来）
+情绪只能是 neutral、happy、angry、sad、relaxed、surprised 之一，例如 [angry]。
+如果画面明显换了一个游戏或应用（和下面「当前画面」里写的不是同一个），在最后单独加一行 [switch]。`
 
 /**
  * 実況履歴エントリ（実況テキスト + 情景描写）
@@ -25,9 +39,12 @@ export function buildGameCommentaryMessages(
 ): Message[] {
   const ss = settingsStore.getState()
   const characterPrompt = ss.systemPrompt || ''
-  const commentaryPrompt = ss.gameCommentaryPromptTemplate || ''
+  // helixus-live: 模板留空时用 Helixus 的中文实况规则；再注入当前游戏和本场经过
+  const commentaryPrompt =
+    ss.gameCommentaryPromptTemplate || HELIXUS_COMMENTARY_PROMPT
 
-  const systemPrompt = characterPrompt + '\n\n' + commentaryPrompt
+  const systemPrompt =
+    characterPrompt + '\n\n' + commentaryPrompt + gameContextBlock()
   const messages: Message[] = [{ role: 'system', content: systemPrompt }]
 
   if (recentChatMessages && recentChatMessages.length > 0) {
@@ -40,7 +57,7 @@ export function buildGameCommentaryMessages(
     if (history.sceneDescription) {
       messages.push({
         role: 'user',
-        content: `[前回の画面状況] ${history.sceneDescription}`,
+        content: `[上一轮画面] ${history.sceneDescription}`,
       })
     }
     messages.push({ role: 'assistant', content: history.commentary })
@@ -49,7 +66,7 @@ export function buildGameCommentaryMessages(
   if (backgroundSceneAnalyses.length > 0) {
     messages.push({
       role: 'user',
-      content: `[発話中の補助的な画面解析メモ・古い順]\n${backgroundSceneAnalyses
+      content: `[你说话期间的画面记录，按时间先后]\n${backgroundSceneAnalyses
         .map((analysis, index) => `${index + 1}. ${analysis.summary}`)
         .join('\n')}`,
     })
@@ -58,7 +75,7 @@ export function buildGameCommentaryMessages(
   messages.push({
     role: 'user',
     content: [
-      { type: 'text', text: '画面の状況を実況してください。' },
+      { type: 'text', text: '看这张最新的屏幕截图，实况一下。' },
       { type: 'image', image: imageData },
     ],
   })
@@ -83,6 +100,7 @@ export async function generateGameCommentary(
   text: string
   emotion: EmotionType
   sceneDescription: string
+  switched: boolean
 } | null> {
   const messages = buildGameCommentaryMessages(
     commentaryHistory,
@@ -137,7 +155,12 @@ export function parseCommentaryResponse(rawText: string): {
   text: string
   emotion: EmotionType
   sceneDescription: string
+  switched: boolean
 } {
+  // helixus-live: [switch] = 画面换了游戏或应用，下一轮重新识别
+  const switched = /\[switch\]/i.test(rawText)
+  rawText = rawText.replace(/\[switch\]/gi, '').trim()
+
   // [scene]タグで分割
   const sceneMatch = rawText.match(/\[scene\]([\s\S]*)$/i)
   const sceneDescription = sceneMatch?.[1]?.trim() || ''
@@ -168,6 +191,7 @@ export function parseCommentaryResponse(rawText: string): {
       text: text || commentaryPart.replace(/\[.*?\]/g, '').trim(),
       emotion,
       sceneDescription,
+      switched,
     }
   }
 
@@ -175,5 +199,6 @@ export function parseCommentaryResponse(rawText: string): {
     text: commentaryPart.replace(/\[.*?\]/g, '').trim(),
     emotion: 'neutral',
     sceneDescription,
+    switched,
   }
 }

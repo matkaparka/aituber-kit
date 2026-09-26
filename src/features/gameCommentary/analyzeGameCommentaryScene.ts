@@ -22,15 +22,14 @@ export async function analyzeGameCommentaryScene(
   const ss = settingsStore.getState()
   const systemPrompt =
     ss.gameCommentaryBackgroundAnalysisPromptTemplate ||
-    `あなたはゲーム実況の補助解析器です。
-実況のセリフや感情表現は不要です。
-画像から次の実況生成に必要な事実だけを、日本語で簡潔に返してください。
+    `你是游戏实况的辅助分析器，不需要台词和情绪。
+只从截图里提取下一轮实况用得上的事实，用中文简洁地写。
 
-ルール:
-- 1〜3行で返す
-- 画面中央の出来事、UIやゲージ、プレイヤーや敵の位置や状態、直後の判断に効く情報を優先
-- 分からないことは推測しない
-- 変化が乏しい静的な場面なら「大きな変化なし」とだけ返してよい`
+规则：
+- 写 1 到 3 行
+- 优先写画面中央发生的事、UI 和血条/计量条、玩家和敌人的位置与状态、影响接下来判断的信息
+- 看不出来的不要猜
+- 画面基本没变化时，只写「没有明显变化」即可`
 
   const messages: Message[] = [
     { role: 'system', content: systemPrompt },
@@ -39,7 +38,7 @@ export async function analyzeGameCommentaryScene(
       content: [
         {
           type: 'text',
-          text: 'この1枚の画面から、実況補助用の事実メモだけを返してください。',
+          text: '从这一张截图里，只返回给实况参考的事实记录。',
         },
         { type: 'image', image: imageData },
       ],

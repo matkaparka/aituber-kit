@@ -13,6 +13,12 @@ import {
   CommentaryHistoryEntry,
 } from '@/features/gameCommentary/generateGameCommentary'
 import { GAME_COMMENTARY_BACKGROUND_ANALYSIS } from '@/features/gameCommentary/gameCommentaryTypes'
+import {
+  identifyGame,
+  recordCommentaryRound,
+  requestGameReidentify,
+  shouldIdentify,
+} from '@/features/helixus/gameMemory' // helixus-live
 
 const MIN_SCHEDULED_CAPTURE_INTERVAL_SECONDS = 3
 const MIN_BACKGROUND_ANALYSIS_INTERVAL_SECONDS = 1
@@ -402,6 +408,17 @@ export function useGameCommentaryMode({
     commentaryAbortControllerRef.current = abortController
 
     try {
+      // helixus-live: 第一张图 / 标记了 [switch] / 到了重新识别的时间 / 手动快捷键 → 先识别游戏
+      if (shouldIdentify()) {
+        await identifyGame(imageData)
+        if (
+          requestToken !== commentaryRequestTokenRef.current ||
+          !isRunningRef.current
+        ) {
+          return
+        }
+      }
+
       const backgroundSceneAnalyses = backgroundSceneAnalysesRef.current
       resetBackgroundSceneAnalyses()
 
@@ -460,6 +477,9 @@ export function useGameCommentaryMode({
         commentary: result.text,
         sceneDescription: result.sceneDescription,
       })
+      // helixus-live: 攒进「本场经过」；换游戏了就下一轮重新识别
+      recordCommentaryRound(result.text, result.sceneDescription)
+      if (result.switched) requestGameReidentify()
 
       // chatLogに保存（YouTube/Mastraとの文脈共有用）
       const currentSaveToChat =
