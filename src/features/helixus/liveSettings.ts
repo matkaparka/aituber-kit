@@ -11,7 +11,6 @@ const num = (v: string | undefined, d: number) => {
   const n = parseFloat(v ?? '')
   return Number.isFinite(n) ? n : d
 }
-const env = process.env
 
 export interface HelixusLiveSettings {
   drawServiceUrl: string
@@ -30,20 +29,27 @@ export interface HelixusLiveSettings {
 }
 
 export const DEFAULT_HELIXUS_LIVE: HelixusLiveSettings = {
-  drawServiceUrl: env.NEXT_PUBLIC_HELIXUS_DRAW_URL || 'http://127.0.0.1:7870',
-  drawPrefixes: env.NEXT_PUBLIC_HELIXUS_DRAW_PREFIXES || '画,/画',
-  drawUserCooldownSec: num(env.NEXT_PUBLIC_HELIXUS_DRAW_USER_COOLDOWN, 300),
-  drawQueueMax: num(env.NEXT_PUBLIC_HELIXUS_DRAW_QUEUE_MAX, 3),
-  drawMaxChars: num(env.NEXT_PUBLIC_HELIXUS_DRAW_MAX_CHARS, 60),
-  drawShowSec: num(env.NEXT_PUBLIC_HELIXUS_DRAW_SHOW_SEC, 600),
+  drawServiceUrl:
+    process.env.NEXT_PUBLIC_HELIXUS_DRAW_URL || 'http://127.0.0.1:7870',
+  drawPrefixes: process.env.NEXT_PUBLIC_HELIXUS_DRAW_PREFIXES || '画,/画',
+  drawUserCooldownSec: num(
+    process.env.NEXT_PUBLIC_HELIXUS_DRAW_USER_COOLDOWN,
+    300
+  ),
+  drawQueueMax: num(process.env.NEXT_PUBLIC_HELIXUS_DRAW_QUEUE_MAX, 3),
+  drawMaxChars: num(process.env.NEXT_PUBLIC_HELIXUS_DRAW_MAX_CHARS, 60),
+  drawShowSec: num(process.env.NEXT_PUBLIC_HELIXUS_DRAW_SHOW_SEC, 600),
   drawFrameRect: { left: 5, top: 10, width: 50, height: 75 },
   drawCharLayout: { x: 25, y: 0, scale: 0.9 },
   reactionCharLayout: { x: 36, y: 0, scale: 0.45 },
-  gameReidentifyMin: num(env.NEXT_PUBLIC_HELIXUS_GAME_REIDENTIFY_MIN, 15),
-  gameSummaryEvery: num(env.NEXT_PUBLIC_HELIXUS_GAME_SUMMARY_EVERY, 10),
+  gameReidentifyMin: num(
+    process.env.NEXT_PUBLIC_HELIXUS_GAME_REIDENTIFY_MIN,
+    15
+  ),
+  gameSummaryEvery: num(process.env.NEXT_PUBLIC_HELIXUS_GAME_SUMMARY_EVERY, 10),
   gameConfidenceMin: 0.6,
   ttsBlockWords:
-    env.NEXT_PUBLIC_HELIXUS_TTS_BLOCK_WORDS ||
+    process.env.NEXT_PUBLIC_HELIXUS_TTS_BLOCK_WORDS ||
     '习近平,毛泽东,六四,天安门事件,法轮功,台独,藏独,色情,做爱,自慰,强奸,裸体',
 }
 
