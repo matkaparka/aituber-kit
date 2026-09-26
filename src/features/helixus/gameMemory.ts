@@ -167,6 +167,31 @@ async function summarize() {
   }
 }
 
+/** 截图几乎全黑（缩到 32×18 后平均亮度 < 10、最亮的点 < 40） */
+export async function isBlankFrame(dataUrl: string): Promise<boolean> {
+  try {
+    const img = new Image()
+    img.src = dataUrl
+    await img.decode()
+    const c = document.createElement('canvas')
+    c.width = 32
+    c.height = 18
+    const ctx = c.getContext('2d')!
+    ctx.drawImage(img, 0, 0, c.width, c.height)
+    const d = ctx.getImageData(0, 0, c.width, c.height).data
+    let sum = 0
+    let max = 0
+    for (let i = 0; i < d.length; i += 4) {
+      const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
+      sum += y
+      if (y > max) max = y
+    }
+    return sum / (d.length / 4) < 10 && max < 40
+  } catch {
+    return false
+  }
+}
+
 /** 注入 system prompt 的固定信息；reaction 没开过（什么都没有）时返回空串 */
 export function gameContextBlock(): string {
   const m = gameMemoryStore.getState()

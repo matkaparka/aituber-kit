@@ -15,6 +15,7 @@ import {
 import { GAME_COMMENTARY_BACKGROUND_ANALYSIS } from '@/features/gameCommentary/gameCommentaryTypes'
 import {
   identifyGame,
+  isBlankFrame,
   recordCommentaryRound,
   requestGameReidentify,
   shouldIdentify,
@@ -403,6 +404,17 @@ export function useGameCommentaryMode({
       return
     }
 
+    // helixus-live: 独占全屏的游戏、选错了 GeForce Overlay 窗口时抓到的是黑屏，不调 LLM，下一轮再看
+    if (await isBlankFrame(imageData)) {
+      logger.warn(
+        'helixus-live: 截图几乎全黑，跳过这一轮（游戏改成窗口化 / 无边框，或者共享整个屏幕）'
+      )
+      isProcessingRef.current = false
+      applyState('waiting')
+      scheduleNext()
+      return
+    }
+
     // AI実況コメント生成
     const abortController = new AbortController()
     commentaryAbortControllerRef.current = abortController
@@ -487,7 +499,8 @@ export function useGameCommentaryMode({
       if (currentSaveToChat) {
         homeStore.getState().upsertMessage({
           role: 'assistant',
-          content: `[実況] ${result.text}`,
+          // helixus-live: 原来带「[実況] 」前缀，字幕会原样显示到直播画面上
+          content: result.text,
           timestamp: new Date().toISOString(),
         })
       }
