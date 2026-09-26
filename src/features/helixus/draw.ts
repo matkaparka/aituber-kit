@@ -37,8 +37,13 @@ function matchPrefix(text: string): string | null {
   for (const p of prefixes) {
     if (!text.startsWith(p)) continue
     const rest = text.slice(p.length)
-    // 「画面好卡」不算：不带 / 的前缀后面要跟空格或冒号
-    if (!p.startsWith('/') && !/^[\s:：]/.test(rest)) continue
+    // 「画面好卡」「画风不错」不算：不带 / 的前缀后面要跟空格、冒号，或者量词（画一个 / 画个 / 画只…）
+    if (
+      !p.startsWith('/') &&
+      !/^[\s:：]|^[一两个只条张幅位头匹棵朵把座艘辆群对副]/.test(rest)
+    ) {
+      continue
+    }
     return rest.replace(/^[\s:：]+/, '').trim()
   }
   return null
@@ -156,6 +161,7 @@ async function runJob(job: Job) {
   // 拒绝 / 拦截 / 故障：画框回到这次开始前的样子
   if (shown) drawFrameStore.setState({ frame: before })
   if (res.status === 'error') {
+    lastByUser.delete(job.user) // 故障不是观众的错，不扣冷却，可以马上再点
     logger.error('helixus-draw: 出图故障', res.reason)
   } else {
     logger.log(`helixus-draw: ${res.status} (${res.reason})`)

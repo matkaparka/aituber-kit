@@ -113,7 +113,7 @@ export default function HelixusLiveSettingsPanel() {
       <Text k="drawServiceUrl" label="画图服务地址（forge_service）" />
       <Text
         k="drawPrefixes"
-        label="指令前缀（逗号分隔；不带 / 的前缀后面要有空格）"
+        label="指令前缀（逗号分隔；不带 / 的前缀后面要跟空格、冒号或量词，如「画 猫」「画一只猫」）"
       />
       <Num k="drawUserCooldownSec" label="同一用户冷却（秒）" />
       <Num k="drawQueueMax" label="全局排队上限" />
