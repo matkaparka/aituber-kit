@@ -105,8 +105,8 @@ export default function HelixusLiveSettingsPanel() {
       <div className="my-2 text-sm whitespace-pre-wrap">
         快捷键：Ctrl+Alt+P 点图模式，Ctrl+Alt+G 看屏幕
         reaction（两者互斥），Ctrl+Alt+I 重新识别游戏。{'\n'}
-        布局数值：画框是视口百分比；角色 x 单位 vw、y 单位 vh，scale
-        以脚底为原点缩放。
+        布局数值：画框是视口百分比；角色先以画面右下角为原点按 scale
+        缩放，再平移 x（vw）、y（vh），负数往左 / 往上。
       </div>
 
       <div className="my-4 font-bold">点图</div>

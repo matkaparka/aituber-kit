@@ -4,7 +4,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { logger } from '@/lib/logger'
 
-export type CharLayout = { x: number; y: number; scale: number } // x: vw，y: vh，scale 以脚底为原点
+export type CharLayout = { x: number; y: number; scale: number } // x: vw，y: vh，以画面右下角为原点缩放后再平移
 export type Rect = { left: number; top: number; width: number; height: number } // 视口百分比
 
 const num = (v: string | undefined, d: number) => {
@@ -40,8 +40,8 @@ export const DEFAULT_HELIXUS_LIVE: HelixusLiveSettings = {
   drawMaxChars: num(process.env.NEXT_PUBLIC_HELIXUS_DRAW_MAX_CHARS, 60),
   drawShowSec: num(process.env.NEXT_PUBLIC_HELIXUS_DRAW_SHOW_SEC, 600),
   drawFrameRect: { left: 5, top: 10, width: 50, height: 75 },
-  drawCharLayout: { x: 25, y: 0, scale: 0.9 },
-  reactionCharLayout: { x: 36, y: 0, scale: 0.45 },
+  drawCharLayout: { x: 10, y: 0, scale: 0.9 },
+  reactionCharLayout: { x: 0, y: 0, scale: 0.45 },
   gameReidentifyMin: num(
     process.env.NEXT_PUBLIC_HELIXUS_GAME_REIDENTIFY_MIN,
     15

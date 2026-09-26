@@ -59,7 +59,7 @@ export const charLayoutStyle = (l: CharLayout | null) =>
   l
     ? {
         transform: `translate(${l.x}vw, ${l.y}vh) scale(${l.scale})`,
-        transformOrigin: '50% 100%',
+        transformOrigin: '100% 100%',
         transition: 'transform 0.6s ease',
       }
     : { transition: 'transform 0.6s ease' }
