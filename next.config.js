@@ -3,6 +3,8 @@ const isRestrictedMode = process.env.NEXT_PUBLIC_RESTRICTED_MODE === 'true'
 
 const nextConfig = {
   reactStrictMode: true,
+  // helixus-live: 直播姬直接拍开发模式的窗口，左下角的 Next.js「N」指示器不能出现在画面里
+  devIndicators: false,
   assetPrefix: process.env.BASE_PATH || '',
   basePath: process.env.BASE_PATH || '',
   trailingSlash: true,
