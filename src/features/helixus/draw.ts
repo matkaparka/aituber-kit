@@ -233,10 +233,11 @@ async function reactToImage(job: Job, image: string) {
     const { handleSendChatFn } = await import('@/features/chat/handlers')
     await handleSendChatFn()(
       canSeeImage
-        ? `【系统】观众「${job.user}」点的画画好了，已经挂在你身边的画框里，就是附上的这张图。` +
-            `他的需求是：「${job.request}」。看图，用你的人设口吻锐评一两句（画得怎样、和需求对不对得上），不要描述太长。`
-        : `【系统】观众「${job.user}」点的画画好了，已经挂在你身边的画框里（你这次看不到图）。` +
-            `他的需求是：「${job.request}」。用你的人设口吻对这个点子锐评一两句，不要假装描述画面细节。`
+        ? `【系统】观众「${job.user}」求你画「${job.request}」，你刚亲手画完，已经挂在你身边的画框里，就是附上的这张图。` +
+            `这是你自己的作品：用你的人设口吻把画赏给他，一两句话。可以自夸画技、嫌弃他点的题材、嘲讽他不配收下，` +
+            `也可以对画里不满意的地方找个傲慢的借口（比如怪他的题目太烂）；不要像评别人的画那样挑刺，也不要描述太长。`
+        : `【系统】观众「${job.user}」求你画「${job.request}」，你刚亲手画完，已经挂在你身边的画框里（你这次看不到图）。` +
+            `这是你自己的作品：用你的人设口吻把画赏给他，一两句话，可以自夸、嫌弃题材；不要假装描述画面细节。`
     )
   } catch (e) {
     logger.error('helixus-draw: 锐评失败', e)
