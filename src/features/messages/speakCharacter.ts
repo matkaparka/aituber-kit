@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger'
+import { filterSpeechText } from '@/features/helixus/liveSettings' // helixus-live
 import settingsStore from '@/features/stores/settings'
 import { AIVoice } from '@/features/constants/settings'
 import { wait } from '@/utils/wait'
@@ -86,6 +87,8 @@ export function preprocessMessage(
   // 前後の空白を削除
   let processed: string | null = message.trim()
   if (!processed) return null
+  // helixus-live: 点图和 reaction 会产生不受控的输出，TTS 前过一遍敏感词表兜底
+  processed = filterSpeechText(processed)
 
   // 絵文字を削除 (これを先に行うことで変換対象のテキスト量を減らす)
   processed = processed.replace(

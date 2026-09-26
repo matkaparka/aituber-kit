@@ -17,6 +17,7 @@ import {
   handleDanceRequest,
   isDancing,
 } from '@/features/helixus/dance' // helixus-dance
+import { extractDrawCommands } from '@/features/helixus/draw' // helixus-live
 import type {
   PresentationAssignment,
   PresentationControlAction,
@@ -180,6 +181,17 @@ const MessageReceiver = () => {
               }
             }
 
+            // helixus-live: 点图模式下，先把「【弹幕】名字：画 xxx」这几行摘给点图队列；只剩点图指令就不调 LLM
+            message.message = extractDrawCommands(message.message)
+            if (!message.message) {
+              if (capturedImage) homeStore.setState({ modalImage: '' })
+              if (message.responseCallback) {
+                await reportResponseCallback(message.responseCallback, {
+                  status: 'empty',
+                })
+              }
+              break
+            }
             // helixus-dance: 弹幕桥的礼物点舞（【点舞】开头；桥会把观众文字里的【】换掉，伪造不了）
             if (message.message.startsWith(DANCE_REQUEST_PREFIX)) {
               message.message = await handleDanceRequest(message.message)

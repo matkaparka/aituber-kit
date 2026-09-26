@@ -29,6 +29,7 @@ import { useLive2DEnabled } from '@/hooks/useLive2DEnabled'
 import { SeoSummary } from '@/components/seoSummary'
 import HelixusDanceCredit from '@/components/helixusDanceCredit' // helixus-dance
 import HelixusDanceTuner from '@/components/helixusDanceTuner' // helixus-dance
+import { HelixusLive, useDrawBackground } from '@/components/helixusLive' // helixus-live
 
 const Home = () => {
   const webcamStatus = homeStore((s) => s.webcamStatus)
@@ -107,8 +108,11 @@ const Home = () => {
     }
   }, [characterPresets, t])
 
-  const backgroundStyle =
-    (webcamStatus || captureStatus) && useVideoAsBackground
+  // helixus-live: 点图模式有画框场景图时换背景
+  const drawBg = useDrawBackground()
+  const backgroundStyle = drawBg
+    ? { backgroundImage: `url(${drawBg})` }
+    : (webcamStatus || captureStatus) && useVideoAsBackground
       ? {}
       : backgroundImageUrl === 'green'
         ? { backgroundColor: '#00FF00' }
@@ -146,6 +150,7 @@ const Home = () => {
       <KioskOverlay />
       <HelixusDanceCredit />
       <HelixusDanceTuner />
+      <HelixusLive />
     </div>
   )
 }

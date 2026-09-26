@@ -1,4 +1,6 @@
 import { logger } from '@/lib/logger'
+import { helixusModeStore } from '@/features/helixus/liveSettings' // helixus-live
+import { setDrawMode } from '@/components/helixusLive' // helixus-live
 import React, { useCallback, useRef, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -56,6 +58,7 @@ export const Menu = () => {
   const youtubePlaying = settingsStore((s) => s.youtubePlaying)
   const gameCommentaryEnabled = settingsStore((s) => s.gameCommentaryEnabled)
   const gameCommentaryPlaying = settingsStore((s) => s.gameCommentaryPlaying)
+  const helixusDrawMode = helixusModeStore((s) => s.drawMode) // helixus-live
   const slideMode = settingsStore((s) => s.slideMode)
   const slideVisible = menuStore((s) => s.slideVisible)
   const thumbnailVisible = menuStore((s) => s.thumbnailVisible)
@@ -450,6 +453,14 @@ export const Menu = () => {
                       data-testid="game-commentary-play-toggle-button"
                     />
                   )}
+                  {/* helixus-live: 点图模式（Ctrl+Alt+P），和 reaction 互斥 */}
+                  <ToolMenuButton
+                    iconName={helixusDrawMode ? '24/PauseAlt' : '24/AddImage'}
+                    label={helixusDrawMode ? '关闭点图模式' : '开启点图模式'}
+                    active={helixusDrawMode}
+                    onClick={() => setDrawMode(!helixusDrawMode)}
+                    aria-pressed={helixusDrawMode}
+                  />
                   {slideMode && (
                     <ToolMenuButton
                       iconName="24/FrameEffect"

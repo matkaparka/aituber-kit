@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger'
+import { charLayoutStyle, useHelixusCharLayout } from '@/components/helixusLive' // helixus-live
 import { useCallback, useEffect, useState } from 'react'
 
 import homeStore from '@/features/stores/home'
@@ -76,10 +77,14 @@ function VrmViewerInner() {
   }, [])
 
   const poseAdjustMode = settingsStore((s) => s.poseAdjustMode)
+  const charLayout = useHelixusCharLayout() // helixus-live: 点图 / reaction 模式的角色布局
 
   return (
     <>
-      <div className={'absolute top-0 left-0 w-screen h-[100svh] z-5'}>
+      <div
+        className={'absolute top-0 left-0 w-screen h-[100svh] z-5'}
+        style={charLayoutStyle(charLayout)}
+      >
         <canvas ref={canvasRef} className={'h-full w-full'}></canvas>
         {isModelLoading && <ModelLoadingOverlay />}
       </div>

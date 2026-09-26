@@ -18,6 +18,7 @@ import {
   GAME_COMMENTARY_CONTEXT_COUNT,
 } from '@/features/gameCommentary/gameCommentaryTypes'
 import { isMultiModalModel } from '@/features/constants/aiModels'
+import HelixusLiveSettingsPanel from './helixusLiveSettings' // helixus-live
 
 const RESIZE_WIDTH_OPTIONS = [
   { value: 512, label: '512px' },
@@ -416,6 +417,7 @@ const GameCommentarySettings = () => {
           )}
         </div>
       </div>
+      <HelixusLiveSettingsPanel />
     </>
   )
 }
