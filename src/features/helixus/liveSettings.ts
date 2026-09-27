@@ -26,6 +26,8 @@ export interface HelixusLiveSettings {
   gameSummaryEvery: number
   gameConfidenceMin: number
   ttsBlockWords: string // 逗号或换行分隔；命中的词在 TTS 前换成「哔」
+  mcLinkUrl: string // helixus-minecraft: Minecraft bot（AIRI fork）的本机接口
+  mcPokeCooldownSec: number // helixus-minecraft: 游戏里出事（受伤、有人说话）提前开口的最短间隔；死亡、濒死不受限
 }
 
 export const DEFAULT_HELIXUS_LIVE: HelixusLiveSettings = {
@@ -51,6 +53,9 @@ export const DEFAULT_HELIXUS_LIVE: HelixusLiveSettings = {
   ttsBlockWords:
     process.env.NEXT_PUBLIC_HELIXUS_TTS_BLOCK_WORDS ||
     '习近平,毛泽东,六四,天安门事件,法轮功,台独,藏独,色情,做爱,自慰,强奸,裸体',
+  mcLinkUrl:
+    process.env.NEXT_PUBLIC_HELIXUS_MC_LINK_URL || 'http://127.0.0.1:8098',
+  mcPokeCooldownSec: num(process.env.NEXT_PUBLIC_HELIXUS_MC_POKE_COOLDOWN, 12),
 }
 
 export const helixusLiveSettings = create<HelixusLiveSettings>()(
@@ -59,7 +64,10 @@ export const helixusLiveSettings = create<HelixusLiveSettings>()(
   })
 )
 
-/** 两个模式互斥：打开一个自动关另一个（布局冲突、抢 GPU） */
+/**
+ * 点图和 reaction 互斥：打开一个自动关另一个（布局冲突、抢 GPU）。
+ * 「自己玩 Minecraft」是 reaction 的一种（mcStore.selfPlay），不单独占一个开关。
+ */
 export const helixusModeStore = create<{ drawMode: boolean }>(() => ({
   drawMode: false,
 }))

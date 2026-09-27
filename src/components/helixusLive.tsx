@@ -1,5 +1,6 @@
 // helixus-live: 点图画框 + 两个模式的快捷键、互斥、布局切换。
-// 快捷键：Ctrl+Alt+P 点图模式，Ctrl+Alt+G 看屏幕 reaction，Ctrl+Alt+I 重新识别游戏
+// 快捷键：Ctrl+Alt+P 点图模式，Ctrl+Alt+G 看屏幕 reaction，Ctrl+Alt+I 重新识别游戏，
+// Ctrl+Alt+M 自己玩 Minecraft（helixus-minecraft，是 reaction 的一种）
 import { useEffect, useState } from 'react'
 import { logger } from '@/lib/logger'
 import settingsStore from '@/features/stores/settings'
@@ -13,6 +14,11 @@ import {
 } from '@/features/helixus/liveSettings'
 import { clearDrawQueue, drawFrameStore } from '@/features/helixus/draw'
 import { requestGameReidentify } from '@/features/helixus/gameMemory'
+import {
+  mcStore,
+  startMcSelfPlay,
+  stopMcSelfPlay,
+} from '@/features/helixus/minecraft'
 
 const FRAME_BG = '/backgrounds/drawing_frame.png'
 
@@ -42,6 +48,20 @@ export function setReactionMode(on: boolean) {
     settingsStore.setState({ gameCommentaryPlaying: false })
   }
   logger.log(`helixus-live: reaction 模式 ${on ? '开' : '关'}`)
+}
+
+/**
+ * helixus-minecraft: 自己玩 Minecraft = reaction（共享 Minecraft 窗口、截图实况、小角色布局）+ 连上本机的 bot。
+ * 关 reaction（快捷键、菜单按钮、开点图）时下面的互斥 effect 会一起关掉它
+ */
+export function setSelfPlayMode(on: boolean) {
+  if (on) {
+    startMcSelfPlay()
+    setReactionMode(true)
+  } else {
+    stopMcSelfPlay()
+    setReactionMode(false)
+  }
 }
 
 /** 当前角色布局：点图 / reaction 各一套，都没开时 null（保持原样） */
@@ -102,6 +122,8 @@ export function HelixusLive() {
         setReactionMode(!settingsStore.getState().gameCommentaryPlaying)
       } else if (k === 'i') {
         requestGameReidentify()
+      } else if (k === 'm') {
+        setSelfPlayMode(!mcStore.getState().selfPlay)
       } else {
         return
       }
@@ -123,9 +145,13 @@ export function HelixusLive() {
         if (!settingsStore.getState().useVideoAsBackground) {
           settingsStore.setState({ useVideoAsBackground: true })
         }
-      } else if (savedVideoBg !== null) {
-        settingsStore.setState({ useVideoAsBackground: savedVideoBg })
-        savedVideoBg = null
+      } else {
+        if (savedVideoBg !== null) {
+          settingsStore.setState({ useVideoAsBackground: savedVideoBg })
+          savedVideoBg = null
+        }
+        // helixus-minecraft: 自己玩挂在 reaction 上，reaction 关了它也关
+        stopMcSelfPlay()
       }
     }
     apply(settingsStore.getState().gameCommentaryPlaying)

@@ -5,6 +5,12 @@ import { THINKING_MARKER } from '@/features/chat/vercelAIChat'
 import { Message, EmotionType, EMOTIONS } from '@/features/messages/messages'
 import settingsStore from '@/features/stores/settings'
 import { gameContextBlock } from '@/features/helixus/gameMemory' // helixus-live
+import {
+  extractMcCommands,
+  mcPromptBlock,
+  mcStore,
+  MC_SELF_PLAY_COMMENTARY_PROMPT,
+} from '@/features/helixus/minecraft' // helixus-minecraft
 
 // helixus-live: Helixus 人设的中文实况规则（设置页里的模板留空时用这个）
 export const HELIXUS_COMMENTARY_PROMPT = `【实况规则】你正在直播里看屏幕，屏幕上是那个有机体（玩家）在玩游戏，你边看边实况。
@@ -39,12 +45,19 @@ export function buildGameCommentaryMessages(
 ): Message[] {
   const ss = settingsStore.getState()
   const characterPrompt = ss.systemPrompt || ''
+  // helixus-minecraft: 自己玩 Minecraft 时换成第一人称规则，再带上游戏状态和指令用法
+  const selfPlay = mcStore.getState().selfPlay
   // helixus-live: 模板留空时用 Helixus 的中文实况规则；再注入当前游戏和本场经过
-  const commentaryPrompt =
-    ss.gameCommentaryPromptTemplate || HELIXUS_COMMENTARY_PROMPT
+  const commentaryPrompt = selfPlay
+    ? MC_SELF_PLAY_COMMENTARY_PROMPT
+    : ss.gameCommentaryPromptTemplate || HELIXUS_COMMENTARY_PROMPT
 
   const systemPrompt =
-    characterPrompt + '\n\n' + commentaryPrompt + gameContextBlock()
+    characterPrompt +
+    '\n\n' +
+    commentaryPrompt +
+    gameContextBlock() +
+    mcPromptBlock()
   const messages: Message[] = [{ role: 'system', content: systemPrompt }]
 
   if (recentChatMessages && recentChatMessages.length > 0) {
@@ -75,7 +88,12 @@ export function buildGameCommentaryMessages(
   messages.push({
     role: 'user',
     content: [
-      { type: 'text', text: '看这张最新的屏幕截图，实况一下。' },
+      {
+        type: 'text',
+        text: selfPlay
+          ? '这是你现在的游戏画面，接着边玩边说。'
+          : '看这张最新的屏幕截图，实况一下。',
+      },
       { type: 'image', image: imageData },
     ],
   })
@@ -101,6 +119,7 @@ export async function generateGameCommentary(
   emotion: EmotionType
   sceneDescription: string
   switched: boolean
+  mcCommands: string[] // helixus-minecraft: 回复里的 [mc:指令]，由调用方转发给 bot
 } | null> {
   const messages = buildGameCommentaryMessages(
     commentaryHistory,
@@ -131,7 +150,9 @@ export async function generateGameCommentary(
     fullText = fullText.trim()
     if (!fullText) return null
 
-    return parseCommentaryResponse(fullText)
+    // helixus-minecraft: 先摘掉 [mc:指令]，不然会被 [scene] 吞进情景描写
+    const { text: withoutMc, commands } = extractMcCommands(fullText)
+    return { ...parseCommentaryResponse(withoutMc), mcCommands: commands }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return null

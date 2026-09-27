@@ -20,6 +20,12 @@ import {
   requestGameReidentify,
   shouldIdentify,
 } from '@/features/helixus/gameMemory' // helixus-live
+import {
+  markEventsNarrated,
+  mcStore,
+  onCommentaryPoke,
+  sendMcCommand,
+} from '@/features/helixus/minecraft' // helixus-minecraft
 
 const MIN_SCHEDULED_CAPTURE_INTERVAL_SECONDS = 3
 const MIN_BACKGROUND_ANALYSIS_INTERVAL_SECONDS = 1
@@ -421,7 +427,8 @@ export function useGameCommentaryMode({
 
     try {
       // helixus-live: 第一张图 / 标记了 [switch] / 到了重新识别的时间 / 手动快捷键 → 先识别游戏
-      if (shouldIdentify()) {
+      // helixus-minecraft: 自己玩 Minecraft 时游戏是确定的，不识别
+      if (!mcStore.getState().selfPlay && shouldIdentify()) {
         await identifyGame(imageData)
         if (
           requestToken !== commentaryRequestTokenRef.current ||
@@ -491,7 +498,13 @@ export function useGameCommentaryMode({
       })
       // helixus-live: 攒进「本场经过」；换游戏了就下一轮重新识别
       recordCommentaryRound(result.text, result.sceneDescription)
-      if (result.switched) requestGameReidentify()
+      if (mcStore.getState().selfPlay) {
+        // helixus-minecraft: 这轮说出口了：指令转给 bot（他边说手下边干），提示词里的事件算说过了
+        result.mcCommands.forEach((c) => void sendMcCommand(c))
+        markEventsNarrated()
+      } else if (result.switched) {
+        requestGameReidentify()
+      }
 
       // chatLogに保存（YouTube/Mastraとの文脈共有用）
       const currentSaveToChat =
@@ -579,6 +592,17 @@ export function useGameCommentaryMode({
       void triggerCommentary()
     }
   }, [triggerCommentary])
+
+  // helixus-minecraft: 游戏里出事了（死了、挨打、有人说话、手下汇报）不等倒计时，马上截图开口。
+  // 正在截图 / 生成 / 说话时不打断，事件会进下一轮的提示词
+  useEffect(() => {
+    if (!isRunning) return
+    return onCommentaryPoke(() => {
+      if (stateRef.current !== 'waiting' || isProcessingRef.current) return
+      clearTimers()
+      triggerCommentaryRef.current()
+    })
+  }, [isRunning, clearTimers])
 
   // ----- タイマーリセット -----
   const resetTimer = useCallback(() => {

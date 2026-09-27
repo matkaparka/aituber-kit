@@ -14,6 +14,27 @@ import {
   markConversationLatency,
   startConversationLatencyTrace,
 } from '../conversationLatency'
+import { McTagStreamFilter, sendMcCommand } from '@/features/helixus/minecraft' // helixus-minecraft
+
+/**
+ * helixus-minecraft: [mc:指令] 在进分句之前摘掉（不显示、不念、不进记忆），转发给 Minecraft bot。
+ * 不在自己玩模式时 sendMcCommand 直接忽略，标签照样摘掉。
+ */
+class McFilteredSegmenter extends SpeechSegmenter {
+  private readonly mcFilter = new McTagStreamFilter(
+    (command) => void sendMcCommand(command)
+  )
+
+  push(chunk: string) {
+    const text = this.mcFilter.push(chunk)
+    return text ? super.push(text) : []
+  }
+
+  flush() {
+    const rest = this.mcFilter.flush()
+    return [...(rest ? super.push(rest) : []), ...super.flush()]
+  }
+}
 
 export type ProcessAIResponseOptions = {
   inputReceivedAt?: number
@@ -59,7 +80,7 @@ export const processAIResponse = async (
 
   const { failed } = await consumeStream(
     stream.getReader(),
-    new SpeechSegmenter({
+    new McFilteredSegmenter({
       firstSpeechCommaMinChars: getFirstSpeechCommaMinChars(
         settingsStore.getState().selectVoice
       ),

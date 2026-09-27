@@ -5,6 +5,7 @@ import {
   HelixusLiveSettings,
 } from '@/features/helixus/liveSettings'
 import { clearGameMemory, gameMemoryStore } from '@/features/helixus/gameMemory'
+import { mcStore } from '@/features/helixus/minecraft'
 
 type NumKey = {
   [K in keyof HelixusLiveSettings]: HelixusLiveSettings[K] extends number
@@ -68,7 +69,7 @@ function Text({
   label,
   area,
 }: {
-  k: 'drawServiceUrl' | 'drawPrefixes' | 'ttsBlockWords'
+  k: 'drawServiceUrl' | 'drawPrefixes' | 'ttsBlockWords' | 'mcLinkUrl'
   label: string
   area?: boolean
 }) {
@@ -95,6 +96,22 @@ function Text({
   )
 }
 
+function McLinkStatus() {
+  const selfPlay = mcStore((s) => s.selfPlay)
+  const reachable = mcStore((s) => s.reachable)
+  const online = mcStore((s) => s.status?.online ?? false)
+  const text = !selfPlay
+    ? '模式没开（开了才会连 bot）'
+    : !reachable
+      ? 'bot 接口连不上：先双击 start_minecraft_bot.bat'
+      : online
+        ? '已连上，角色在游戏里'
+        : 'bot 开着，但角色不在游戏里（游戏 / 服务器没开）'
+  return (
+    <div className="my-2 text-sm rounded-lg bg-white/60 p-2">当前：{text}</div>
+  )
+}
+
 export default function HelixusLiveSettingsPanel() {
   const game = gameMemoryStore((s) => s.game)
   const conf = gameMemoryStore((s) => s.confidence)
@@ -104,7 +121,8 @@ export default function HelixusLiveSettingsPanel() {
       <div className="my-4 text-xl font-bold">Helixus 直播：点图 / 看屏幕</div>
       <div className="my-2 text-sm whitespace-pre-wrap">
         快捷键：Ctrl+Alt+P 点图模式，Ctrl+Alt+G 看屏幕
-        reaction（两者互斥），Ctrl+Alt+I 重新识别游戏。{'\n'}
+        reaction（两者互斥），Ctrl+Alt+I 重新识别游戏，Ctrl+Alt+M 自己玩
+        Minecraft（reaction + 操控本机的 bot）。{'\n'}
         布局数值：画框是视口百分比；角色先以画面右下角为原点按 scale
         缩放，再平移 x（vw）、y（vh），负数往左 / 往上。
       </div>
@@ -137,6 +155,17 @@ export default function HelixusLiveSettingsPanel() {
       >
         清空游戏记忆
       </button>
+
+      <div className="my-4 font-bold">自己玩 Minecraft</div>
+      <Text
+        k="mcLinkUrl"
+        label="Minecraft bot 接口地址（start_minecraft_bot.bat 启动的 helixus-link）"
+      />
+      <Num
+        k="mcPokeCooldownSec"
+        label="游戏里出事提前开口的最短间隔（秒，死亡 / 濒死不受限）"
+      />
+      <McLinkStatus />
 
       <div className="my-4 font-bold">TTS 前敏感词兜底</div>
       <Text
