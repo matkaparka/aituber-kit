@@ -26,6 +26,10 @@ import i18next from 'i18next'
 import { SpeakQueue } from './speakQueue'
 import { getCharacterRenderer } from './characterRenderer'
 import {
+  nextSentenceUsesLive,
+  requestLiveMotion,
+} from '@/features/helixus/liveMotion' // helixus-live-motion
+import {
   asyncConvertEnglishToJapaneseReading,
   containsEnglish,
 } from '@/utils/textProcessing'
@@ -348,6 +352,9 @@ const createSpeakCharacter = () => {
 
     let isNeedDecode = true
     const synthesisOrder = nextSynthesisOrder++
+    // helixus-live-motion: 按句子顺序决定这句用不用实时生成（3:1）；带动作标签的句子不参与
+    const useLiveMotion =
+      !talk.motion && !!processedMessage && nextSentenceUsesLive()
 
     const processAndSynthesizePromise = (async () => {
       // TTS APIの瞬間的な連打は避けつつ、合成自体は並列で進める。
@@ -428,6 +435,11 @@ const createSpeakCharacter = () => {
             }
           } else {
             const buffer = await synthesizeVoice(talk, ss.selectVoice)
+            // helixus-live-motion: 合成完立刻开始请求动作（前一句还在播，时间够）。
+            // 传拷贝：原 buffer 播放时解码会被转移掉
+            if (buffer && useLiveMotion) {
+              talk.liveMotion = requestLiveMotion(buffer.slice(0))
+            }
             audio = buffer
               ? { kind: 'buffer', audioBuffer: buffer, isNeedDecode }
               : null

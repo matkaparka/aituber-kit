@@ -16,6 +16,7 @@ import { Talk } from '../messages/messages'
 import { PoseManager } from '@/lib/VRMAnimation/poseManager'
 import { resolveMotionTag } from '@/features/helixus/motionTags' // helixus-motion
 import { MotionDirector } from '@/features/helixus/motionDirector' // helixus-motion
+import { takeLiveMotion } from '@/features/helixus/liveMotion' // helixus-live-motion
 import { DanceController } from '@/features/helixus/dance' // helixus-dance
 import type { PlaybackObserver } from '../messages/characterRenderer'
 
@@ -138,6 +139,10 @@ export class Model {
       this.poseManager.resetToIdle(this)
     }
 
+    // helixus-live-motion: 这句的实时生成动作（没有 / 没来得及 → null，director 用片段轮播）
+    const live = talk.motion ? null : await takeLiveMotion(talk.liveMotion)
+    this.motionDirector?.beginUtterance(live)
+
     this._audioActive++ // helixus-motion
     try {
       await new Promise((resolve) => {
@@ -171,6 +176,7 @@ export class Model {
     } else if (this.poseManager.isActive) {
       this.poseManager.resetToIdle(this)
     }
+    this.motionDirector?.beginUtterance(null) // helixus-live-motion: 流式 TTS 没有整句音频，用片段轮播
 
     this._audioActive++ // helixus-motion
     try {

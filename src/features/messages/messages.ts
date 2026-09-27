@@ -1,3 +1,5 @@
+import type { VRMAnimation } from '@/lib/VRMAnimation/VRMAnimation' // helixus-live-motion
+
 export type Message = {
   id?: string
   role: string // "assistant" | "system" | "user";
@@ -27,6 +29,8 @@ export type Talk = {
   message: string
   buffer?: ArrayBuffer
   motion?: string
+  // helixus-live-motion: 这句 TTS 对应的实时生成动作（合成完就开始请求，开口时取）
+  liveMotion?: Promise<VRMAnimation | null>
 }
 
 export const splitSentence = (text: string): string[] => {

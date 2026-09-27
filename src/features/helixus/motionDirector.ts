@@ -44,6 +44,7 @@ interface Entry {
   target: number
   fade: number
   idleAge: number // 权重为 0 的时间（talk 用来判断还能不能续播）
+  live?: boolean // helixus-live-motion: 这一句实时生成的 talk
 }
 
 interface TalkClip {
@@ -75,6 +76,9 @@ export class MotionDirector {
   private idleTimer = rand(MOTION.idleSwitch[0], MOTION.idleSwitch[1])
   private idleSwitching = false
   private defaultIdleAction?: THREE.AnimationAction
+  // helixus-live-motion: 下一句（马上开口）的动作；anim=null 表示这句用片段轮播
+  private pendingUtterance: { anim: VRMAnimation | null; at: number } | null =
+    null
 
   constructor(
     private mixer: THREE.AnimationMixer,
@@ -267,6 +271,50 @@ export class MotionDirector {
   /** 舞蹈当前的实际权重（含淡出中的），liveLayer 的身体层按它让开 */
   danceWeight = 0
 
+  // ------------------------------------------------------------ 实时生成（helixus-live-motion）
+  /**
+   * 每句开口前调用。anim：这句按语音节奏生成的动作（从头播，和语音同步）；
+   * null：这句用 public/talk 的片段轮播（3:1 里那 1 句，或服务没来得及）
+   */
+  beginUtterance(anim: VRMAnimation | null) {
+    this.pendingUtterance = { anim, at: performance.now() }
+  }
+
+  /** 开口时处理 beginUtterance 排队的动作 */
+  private applyPendingUtterance(frameDelta: number) {
+    const p = this.pendingUtterance
+    if (!p) return
+    this.pendingUtterance = null
+    if (p.anim) {
+      const clip = p.anim.createAnimationClip(this.vrm)
+      clip.name = 'talk_live'
+      const action = this.mixer.clipAction(clip)
+      action.setLoop(THREE.LoopOnce, 1)
+      action.clampWhenFinished = true
+      action.reset()
+      action.timeScale = 1
+      // 从排队到真正开口之间过去的时间（音频解码等）补上，保持和语音同步。
+      // 本帧稍后 mixer.update(delta) 还会再推进 delta，所以先扣掉，否则卡顿帧会被算两遍
+      const elapsed = (performance.now() - p.at) / 1000
+      action.time = Math.min(
+        Math.max(0, elapsed - frameDelta),
+        Math.max(0, clip.duration - 0.05)
+      )
+      action.play()
+      if (this.talk) {
+        this.talk.target = 0
+        this.talk.fade = MOTION.talkFade
+      }
+      this.talk = this.add('talk', action, MOTION.talkFade)
+      this.talk.live = true
+    } else if (this.talk?.live) {
+      // 上一句是实时生成的，这句换回片段轮播
+      this.talk.target = 0
+      this.talk.fade = MOTION.talkFade
+      this.talk = this.startTalk()
+    }
+  }
+
   // ------------------------------------------------------------ json 静态姿势
   /** poseManager 的 json 姿势接管身体时调用 true，放回时调用 false */
   setExternal(on: boolean) {
@@ -326,19 +374,24 @@ export class MotionDirector {
     } else if (this.oneShot) {
       this.setTargets('oneshot')
     } else if (wantTalk) {
-      this.ensureTalk()
+      this.applyPendingUtterance(Math.max(delta, 0)) // helixus-live-motion
+      this.ensureTalk(audioPlaying)
       this.setTargets('talk')
     } else {
       this.setTargets('idle')
     }
 
     // talk 片段快播完了还在说话：交叉淡入下一段
+    // （实时生成的片段和这句话同时结束：播完时语音也停了就停在最后一帧等回待机，
+    //   下一句会带自己的片段来；只有播完了语音还在继续才补一段）
     if (
       wantTalk &&
       !settling &&
       !this.oneShot &&
       this.talk &&
-      this.remaining(this.talk) <= MOTION.talkFade
+      (this.talk.live
+        ? audioPlaying && this.remaining(this.talk) <= 0.02
+        : this.remaining(this.talk) <= MOTION.talkFade)
     ) {
       this.talk.target = 0
       this.talk.fade = MOTION.talkFade
@@ -432,8 +485,14 @@ export class MotionDirector {
   }
 
   /** 要说话了：刚停下不久的那段还有得播就接着播，否则开新的一段 */
-  private ensureTalk() {
-    if (this.talk && this.remaining(this.talk) > MOTION.minRemain) return
+  private ensureTalk(audioPlaying: boolean) {
+    // helixus-live-motion: 实时生成的片段和这句话一样长：没播完就一直用（短句也不换）；
+    // 播完了但语音也停了（句尾到回待机之间）就停在最后一帧，不补随机片段
+    if (this.talk?.live) {
+      if (this.remaining(this.talk) > 0.02 || !audioPlaying) return
+    } else if (this.talk && this.remaining(this.talk) > MOTION.minRemain) {
+      return
+    }
     if (this.talk) this.talk.target = 0
     this.talk = this.startTalk()
   }
