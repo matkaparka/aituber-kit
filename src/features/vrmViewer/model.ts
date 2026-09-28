@@ -18,6 +18,7 @@ import { resolveMotionTag } from '@/features/helixus/motionTags' // helixus-moti
 import { MotionDirector } from '@/features/helixus/motionDirector' // helixus-motion
 import { takeLiveMotion } from '@/features/helixus/liveMotion' // helixus-live-motion
 import { DanceController } from '@/features/helixus/dance' // helixus-dance
+import { isSinging, singing } from '@/features/helixus/singing' // helixus-singing
 import type { PlaybackObserver } from '../messages/characterRenderer'
 
 /**
@@ -87,6 +88,21 @@ export class Model {
     )
   }
 
+  /** helixus-singing: 唱歌时伴奏和人声要用口型分析器所在的同一个 AudioContext */
+  public get lipSyncAudio(): {
+    ctx: AudioContext
+    analyser: AnalyserNode
+  } | null {
+    return this._lipSync
+      ? { ctx: this._lipSync.audio, analyser: this._lipSync.analyser }
+      : null
+  }
+
+  /** helixus-singing: 有 TTS 语音正在播放 */
+  public get audioActive(): boolean {
+    return this._audioActive > 0
+  }
+
   public unLoadVrm() {
     if (this.vrm) {
       VRMUtils.deepDispose(this.vrm.scene)
@@ -130,6 +146,7 @@ export class Model {
     observer?: PlaybackObserver
   ) {
     await this.dance?.waitIdle() // helixus-dance: 跳舞期间 TTS 暂停，跳完接着念
+    await singing.waitIdle() // helixus-singing: 唱歌期间同样暂停
     this.emoteController?.playEmotion(talk.emotion)
 
     if (talk.motion) {
@@ -169,6 +186,7 @@ export class Model {
     observer?: PlaybackObserver
   ) {
     await this.dance?.waitIdle() // helixus-dance
+    await singing.waitIdle() // helixus-singing
     this.emoteController?.playEmotion(talk.emotion)
 
     if (talk.motion) {
@@ -263,7 +281,13 @@ export class Model {
 
     this.emoteController?.update(delta)
     this.dance?.update() // helixus-dance: 按音频时钟设置舞蹈时间，要在 director / mixer 之前
-    this.motionDirector?.update(delta, this._audioActive > 0) // helixus-motion
+    singing.tick() // helixus-singing: 推进唱歌状态、算出人声此刻在不在唱
+    if (this.motionDirector) this.motionDirector.holdIdle = isSinging() // 唱歌期间不换待机站姿
+    // helixus-motion（helixus-singing：人声在唱也算「在说话」，talk 片段轮播，间奏回待机）
+    this.motionDirector?.update(
+      delta,
+      this._audioActive > 0 || singing.voiceActive
+    )
     this.mixer?.update(delta)
     this.dance?.afterMixer() // helixus-dance: 根骨骼水平位移限幅
 

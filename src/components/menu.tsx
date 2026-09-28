@@ -19,6 +19,7 @@ import Capture from './capture'
 import { isMultiModalAvailable } from '@/features/constants/aiModels'
 import { AIService } from '@/features/constants/settings'
 import { getLatestAssistantMessage } from '@/utils/assistantMessageUtils'
+import { singingStore } from '@/features/helixus/singing' // helixus-singing
 import { useKioskMode } from '@/hooks/useKioskMode'
 import {
   DEFAULT_SETTINGS_TOGGLE_SHORTCUT,
@@ -69,6 +70,10 @@ export const Menu = () => {
   const showCapture = menuStore((s) => s.showCapture)
   const slidePlaying = slideStore((s) => s.isPlaying)
   const showAssistantText = settingsStore((s) => s.showAssistantText)
+  const singingNow = singingStore(
+    (s) =>
+      s.phase === 'loading' || s.phase === 'playing' || s.phase === 'ending'
+  ) // helixus-singing
   const settingsToggleShortcut =
     settingsStore((s) => s.settingsToggleShortcut) ||
     DEFAULT_SETTINGS_TOGGLE_SHORTCUT
@@ -500,6 +505,7 @@ export const Menu = () => {
       {chatLogMode === CHAT_LOG_MODE.ASSISTANT &&
         latestAssistantMessage &&
         (!slideMode || !slideVisible) &&
+        !singingNow && // helixus-singing: 唱歌时让位给歌词
         showAssistantText && <AssistantText message={latestAssistantMessage} />}
       {showWebcam && navigator.mediaDevices && <Webcam />}
       {showCapture && <Capture />}

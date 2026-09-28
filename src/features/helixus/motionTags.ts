@@ -6,6 +6,7 @@ import { gameContextForChat } from './gameMemory' // helixus-live
 import type { PoseConfigItem } from '@/features/stores/settings'
 import { dancePromptLine } from './dance'
 import { mcPromptBlock } from './minecraft' // helixus-minecraft
+import { singingPromptLine } from './singing' // helixus-singing
 
 export const HELIXUS_MOTION_TAGS = [
   'nod',
@@ -114,6 +115,9 @@ export async function motionPromptSuffix(): Promise<string> {
     s += `\n\n当前可用的动作标签（只能用这些）：${tags.join(', ')}`
   }
   if (danceLine) s += `\n${danceLine}`
+  // helixus-singing: 弹幕桥发来的【点歌】【歌单】结果怎么回
+  const singLine = singingPromptLine()
+  if (singLine) s += `\n${singLine}`
   // helixus-live: reaction 开着时，普通弹幕回复也带上当前游戏和本场经过
   s += gameContextForChat()
   // helixus-minecraft: 自己玩模式下带上游戏状态和 [mc:指令] 用法，弹幕让他干什么他可以直接下指令

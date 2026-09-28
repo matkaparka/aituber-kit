@@ -29,6 +29,7 @@ import { useLive2DEnabled } from '@/hooks/useLive2DEnabled'
 import { SeoSummary } from '@/components/seoSummary'
 import HelixusDanceCredit from '@/components/helixusDanceCredit' // helixus-dance
 import HelixusDanceTuner from '@/components/helixusDanceTuner' // helixus-dance
+import HelixusSinging from '@/components/helixusSinging' // helixus-singing
 import { HelixusLive, useDrawBackground } from '@/components/helixusLive' // helixus-live
 
 const Home = () => {
@@ -149,6 +150,7 @@ const Home = () => {
       </div>
       <KioskOverlay />
       <HelixusDanceCredit />
+      <HelixusSinging />
       <HelixusDanceTuner />
       <HelixusLive />
     </div>

@@ -192,9 +192,13 @@ export class MotionDirector {
   /** 待机动作当前的实际权重（liveLayer 的身体层按它让开） */
   idleWeight = 1
 
+  /** helixus-singing: 为 true 时不算待机（待机站姿不轮换） */
+  holdIdle = false
+
   /** 真正待机：没说话、没播片段、没摆 json 姿势，且没有任何过渡在进行 */
   get isIdle(): boolean {
     return (
+      !this.holdIdle &&
       !this.oneShot &&
       !this.dance &&
       this.externalTarget === 0 &&

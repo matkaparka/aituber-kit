@@ -18,6 +18,7 @@ import {
   isDancing,
 } from '@/features/helixus/dance' // helixus-dance
 import { extractDrawCommands } from '@/features/helixus/draw' // helixus-live
+import { isSinging, singingStore } from '@/features/helixus/singing' // helixus-singing
 import type {
   PresentationAssignment,
   PresentationControlAction,
@@ -537,6 +538,7 @@ const MessageReceiver = () => {
               isSpeaking: hs.isSpeaking,
               chatProcessing: hs.chatProcessing,
               helixusDancing: isDancing(), // helixus-dance: 弹幕桥据此暂停转发
+              helixusSinging: isSinging(), // helixus-singing: 同上
               messageReceiverEnabled: ss.messageReceiverEnabled,
               modelType: ss.modelType,
               aiService: ss.selectAIService,
@@ -793,6 +795,15 @@ const MessageReceiver = () => {
       }
     )
 
+    // helixus-singing: 开始 / 结束唱歌时立刻上报
+    const unsubscribeSingingStatus = singingStore.subscribe(
+      (state, previousState) => {
+        if ((state.phase === 'idle') !== (previousState.phase === 'idle')) {
+          void safeReportStatus()
+        }
+      }
+    )
+
     const claimClientTabLeadership = () => {
       if (document.visibilityState !== 'visible') return
       writeClientTabLease()
@@ -891,6 +902,7 @@ const MessageReceiver = () => {
       unsubscribePresentationStatus()
       unsubscribeSpeechStatus()
       unsubscribeDanceStatus()
+      unsubscribeSingingStatus()
       window.removeEventListener('focus', claimClientTabLeadership)
       window.removeEventListener('storage', handleStorage)
       window.removeEventListener('beforeunload', releaseClientTabLease)

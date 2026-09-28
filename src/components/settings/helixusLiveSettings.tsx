@@ -7,6 +7,7 @@ import {
 import { clearGameMemory, gameMemoryStore } from '@/features/helixus/gameMemory'
 import { mcStore } from '@/features/helixus/minecraft'
 import { setSelfPlayMode } from '@/components/helixusLive'
+import { singing, singingStore } from '@/features/helixus/singing' // helixus-singing
 
 type NumKey = {
   [K in keyof HelixusLiveSettings]: HelixusLiveSettings[K] extends number
@@ -76,6 +77,7 @@ function Text({
     | 'ttsBlockWords'
     | 'mcLinkUrl'
     | 'selfPlayHotkey'
+    | 'singingUrl'
   label: string
   area?: boolean
 }) {
@@ -99,6 +101,71 @@ function Text({
         />
       )}
     </label>
+  )
+}
+
+function Bool({
+  k,
+  label,
+}: {
+  k: 'singingEnabled' | 'singingLyrics'
+  label: string
+}) {
+  const v = helixusLiveSettings((s) => s[k])
+  return (
+    <label className="flex items-center gap-2 my-1 text-sm">
+      <input
+        type="checkbox"
+        checked={v}
+        onChange={(e) =>
+          helixusLiveSettings.setState({
+            [k]: e.target.checked,
+          } as Partial<HelixusLiveSettings>)
+        }
+      />
+      <span>{label}</span>
+    </label>
+  )
+}
+
+// helixus-singing: 唱歌服务连接状态、当前在唱的歌和队列，外加手动切歌
+function SingingStatus() {
+  const ok = singingStore((s) => s.serviceOk)
+  const phase = singingStore((s) => s.phase)
+  const song = singingStore((s) => s.song)
+  const queue = singingStore((s) => s.queue)
+  const conn =
+    ok === null
+      ? '还没连过'
+      : ok
+        ? '已连上'
+        : '连不上（start_singing.bat 没开？）'
+  const now =
+    song && phase !== 'idle'
+      ? `正在唱《${song.name}》（${song.requester || '—'} 点的）`
+      : '没在唱'
+  const list = queue.length
+    ? queue
+        .map((q, i) => `${i + 1}.《${q.name}》${q.requester}·${q.state}`)
+        .join('  ')
+    : '队列空'
+  return (
+    <div className="my-2 flex items-center gap-3 text-sm">
+      <div className="rounded-lg bg-white/60 p-2 whitespace-pre-wrap">
+        唱歌服务：{conn}
+        {'\n'}
+        {now}
+        {'\n'}
+        {list}
+      </div>
+      <button
+        className="rounded-lg bg-secondary px-3 py-1 text-theme hover:bg-secondary-hover disabled:opacity-50"
+        disabled={phase !== 'playing' && phase !== 'loading'}
+        onClick={() => singing.stop('stopped', true)}
+      >
+        切歌
+      </button>
+    </div>
   )
 }
 
@@ -191,6 +258,20 @@ export default function HelixusLiveSettingsPanel() {
         label="快捷键字母（Ctrl+Alt+这个字母；被别的程序占用就换一个）"
       />
       <McLinkStatus />
+
+      <div className="my-4 font-bold">唱歌（弹幕点歌）</div>
+      <div className="my-2 text-sm whitespace-pre-wrap">
+        观众发「点歌 歌名 [歌手]」，房管 /
+        主播发「切歌」，「歌单」让他念队列；这些由弹幕桥交给唱歌服务。
+        歌处理好后，他闲下来就自动开唱。
+      </div>
+      <Bool
+        k="singingEnabled"
+        label="启用点歌（关掉后不再领歌，正在唱的唱完）"
+      />
+      <Bool k="singingLyrics" label="唱歌时显示歌词字幕" />
+      <Text k="singingUrl" label="唱歌服务地址" />
+      <SingingStatus />
 
       <div className="my-4 font-bold">TTS 前敏感词兜底</div>
       <Text
