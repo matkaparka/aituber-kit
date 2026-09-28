@@ -6,6 +6,7 @@ import {
 } from '@/features/helixus/liveSettings'
 import { clearGameMemory, gameMemoryStore } from '@/features/helixus/gameMemory'
 import { mcStore } from '@/features/helixus/minecraft'
+import { setSelfPlayMode } from '@/components/helixusLive'
 
 type NumKey = {
   [K in keyof HelixusLiveSettings]: HelixusLiveSettings[K] extends number
@@ -69,7 +70,12 @@ function Text({
   label,
   area,
 }: {
-  k: 'drawServiceUrl' | 'drawPrefixes' | 'ttsBlockWords' | 'mcLinkUrl'
+  k:
+    | 'drawServiceUrl'
+    | 'drawPrefixes'
+    | 'ttsBlockWords'
+    | 'mcLinkUrl'
+    | 'selfPlayHotkey'
   label: string
   area?: boolean
 }) {
@@ -100,15 +106,29 @@ function McLinkStatus() {
   const selfPlay = mcStore((s) => s.selfPlay)
   const reachable = mcStore((s) => s.reachable)
   const online = mcStore((s) => s.status?.online ?? false)
+  const civ = mcStore((s) => s.status?.game === 'civ6')
   const text = !selfPlay
-    ? '模式没开（开了才会连 bot）'
+    ? '模式没开（开了才会连游戏代理）'
     : !reachable
-      ? 'bot 接口连不上：先双击 start_minecraft_bot.bat'
-      : online
-        ? '已连上，角色在游戏里'
-        : 'bot 开着，但角色不在游戏里（游戏 / 服务器没开）'
+      ? '游戏代理连不上：先双击 start_minecraft_bot.bat 或 start_civ_player.bat'
+      : civ
+        ? online
+          ? '文明6：已连上对局'
+          : '文明6 代理开着，但游戏没开或还没进对局'
+        : online
+          ? 'Minecraft：已连上，角色在游戏里'
+          : 'Minecraft bot 开着，但角色不在游戏里（游戏 / 局域网没开）'
   return (
-    <div className="my-2 text-sm rounded-lg bg-white/60 p-2">当前：{text}</div>
+    <div className="my-2 flex items-center gap-3 text-sm">
+      <div className="rounded-lg bg-white/60 p-2">当前：{text}</div>
+      {/* 快捷键被别的程序抢走时，用这个按钮开关 */}
+      <button
+        className="rounded-lg bg-secondary px-3 py-1 text-theme hover:bg-secondary-hover"
+        onClick={() => setSelfPlayMode(!selfPlay)}
+      >
+        {selfPlay ? '停止自己玩' : '开始自己玩'}
+      </button>
+    </div>
   )
 }
 
@@ -121,8 +141,9 @@ export default function HelixusLiveSettingsPanel() {
       <div className="my-4 text-xl font-bold">Helixus 直播：点图 / 看屏幕</div>
       <div className="my-2 text-sm whitespace-pre-wrap">
         快捷键：Ctrl+Alt+P 点图模式，Ctrl+Alt+G 看屏幕
-        reaction（两者互斥），Ctrl+Alt+I 重新识别游戏，Ctrl+Alt+M 自己玩
-        Minecraft（reaction + 操控本机的 bot）。{'\n'}
+        reaction（两者互斥），Ctrl+Alt+I 重新识别游戏，Ctrl+Alt+K
+        自己玩游戏（reaction + 操控本机的游戏代理；字母可在下面改，M
+        也认）。快捷键没反应时用下面的「开始自己玩」按钮。{'\n'}
         布局数值：画框是视口百分比；角色先以画面右下角为原点按 scale
         缩放，再平移 x（vw）、y（vh），负数往左 / 往上。
       </div>
@@ -156,14 +177,18 @@ export default function HelixusLiveSettingsPanel() {
         清空游戏记忆
       </button>
 
-      <div className="my-4 font-bold">自己玩 Minecraft</div>
+      <div className="my-4 font-bold">自己玩游戏（Minecraft / 文明6）</div>
       <Text
         k="mcLinkUrl"
-        label="Minecraft bot 接口地址（start_minecraft_bot.bat 启动的 helixus-link）"
+        label="游戏代理接口地址（Minecraft bot 或文明6 代理，都在 8098，同一时间只开一个）"
       />
       <Num
         k="mcPokeCooldownSec"
         label="游戏里出事提前开口的最短间隔（秒，死亡 / 濒死不受限）"
+      />
+      <Text
+        k="selfPlayHotkey"
+        label="快捷键字母（Ctrl+Alt+这个字母；被别的程序占用就换一个）"
       />
       <McLinkStatus />
 

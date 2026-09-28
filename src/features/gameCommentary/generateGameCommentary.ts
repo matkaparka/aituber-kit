@@ -9,7 +9,7 @@ import {
   extractMcCommands,
   mcPromptBlock,
   mcStore,
-  MC_SELF_PLAY_COMMENTARY_PROMPT,
+  selfPlayCommentaryPrompt,
 } from '@/features/helixus/minecraft' // helixus-minecraft
 
 // helixus-live: Helixus 人设的中文实况规则（设置页里的模板留空时用这个）
@@ -45,11 +45,11 @@ export function buildGameCommentaryMessages(
 ): Message[] {
   const ss = settingsStore.getState()
   const characterPrompt = ss.systemPrompt || ''
-  // helixus-minecraft: 自己玩 Minecraft 时换成第一人称规则，再带上游戏状态和指令用法
+  // helixus-minecraft: 自己玩游戏（Minecraft / 文明6）时换成第一人称规则，再带上游戏状态和指令用法
   const selfPlay = mcStore.getState().selfPlay
   // helixus-live: 模板留空时用 Helixus 的中文实况规则；再注入当前游戏和本场经过
   const commentaryPrompt = selfPlay
-    ? MC_SELF_PLAY_COMMENTARY_PROMPT
+    ? selfPlayCommentaryPrompt()
     : ss.gameCommentaryPromptTemplate || HELIXUS_COMMENTARY_PROMPT
 
   const systemPrompt =

@@ -1,6 +1,6 @@
 // helixus-live: 点图画框 + 两个模式的快捷键、互斥、布局切换。
 // 快捷键：Ctrl+Alt+P 点图模式，Ctrl+Alt+G 看屏幕 reaction，Ctrl+Alt+I 重新识别游戏，
-// Ctrl+Alt+M 自己玩 Minecraft（helixus-minecraft，是 reaction 的一种）
+// Ctrl+Alt+K（设置里可改；M 也认）自己玩游戏：Minecraft 或文明6（helixus-minecraft，是 reaction 的一种）
 import { useEffect, useState } from 'react'
 import { logger } from '@/lib/logger'
 import settingsStore from '@/features/stores/settings'
@@ -51,7 +51,7 @@ export function setReactionMode(on: boolean) {
 }
 
 /**
- * helixus-minecraft: 自己玩 Minecraft = reaction（共享 Minecraft 窗口、截图实况、小角色布局）+ 连上本机的 bot。
+ * helixus-minecraft: 自己玩游戏 = reaction（共享游戏窗口、截图实况、小角色布局）+ 连上本机的游戏代理（Minecraft bot 或文明6 代理）。
  * 关 reaction（快捷键、菜单按钮、开点图）时下面的互斥 effect 会一起关掉它
  */
 export function setSelfPlayMode(on: boolean) {
@@ -116,13 +116,21 @@ export function HelixusLive() {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || !e.altKey || e.repeat) return
       const k = e.key.toLowerCase()
+      // 按物理键位认字母：有的输入法 / 键盘布局下 Ctrl+Alt+字母 的 e.key 不是这个字母
+      const letter = e.code.startsWith('Key')
+        ? e.code.slice(3).toLowerCase()
+        : k
+      const selfPlayKey = (
+        helixusLiveSettings.getState().selfPlayHotkey || 'k'
+      ).toLowerCase()
       if (k === 'p') {
         setDrawMode(!helixusModeStore.getState().drawMode)
       } else if (k === 'g') {
         setReactionMode(!settingsStore.getState().gameCommentaryPlaying)
       } else if (k === 'i') {
         requestGameReidentify()
-      } else if (k === 'm') {
+      } else if (letter === selfPlayKey || letter === 'm') {
+        // M 是最早的键，有的电脑上被别的程序（开麦之类）注册成全局快捷键，页面收不到；默认改用 K，M 照样认
         setSelfPlayMode(!mcStore.getState().selfPlay)
       } else {
         return

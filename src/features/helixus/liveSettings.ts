@@ -28,6 +28,7 @@ export interface HelixusLiveSettings {
   ttsBlockWords: string // 逗号或换行分隔；命中的词在 TTS 前换成「哔」
   mcLinkUrl: string // helixus-minecraft: Minecraft bot（AIRI fork）的本机接口
   mcPokeCooldownSec: number // helixus-minecraft: 游戏里出事（受伤、有人说话）提前开口的最短间隔；死亡、濒死不受限
+  selfPlayHotkey: string // helixus-minecraft: 自己玩模式的快捷键字母（Ctrl+Alt+这个字母）；M 被别的程序的全局快捷键占掉时用
 }
 
 export const DEFAULT_HELIXUS_LIVE: HelixusLiveSettings = {
@@ -56,6 +57,7 @@ export const DEFAULT_HELIXUS_LIVE: HelixusLiveSettings = {
   mcLinkUrl:
     process.env.NEXT_PUBLIC_HELIXUS_MC_LINK_URL || 'http://127.0.0.1:8098',
   mcPokeCooldownSec: num(process.env.NEXT_PUBLIC_HELIXUS_MC_POKE_COOLDOWN, 12),
+  selfPlayHotkey: process.env.NEXT_PUBLIC_HELIXUS_SELF_PLAY_KEY || 'k',
 }
 
 export const helixusLiveSettings = create<HelixusLiveSettings>()(

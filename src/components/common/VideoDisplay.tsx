@@ -17,6 +17,9 @@ import {
   getTopRightAnchoredResizeOffset,
 } from '@/utils/mediaDisplay'
 
+/** helixus-live: 发给 LLM 的截图最宽多少像素（见 handleCapture） */
+const CAPTURE_MAX_WIDTH = 1280
+
 interface VideoDisplayProps {
   videoRef: React.RefObject<HTMLVideoElement>
   mediaStream?: MediaStream | null
@@ -190,14 +193,17 @@ export const VideoDisplay = forwardRef<HTMLDivElement, VideoDisplayProps>(
       )
         return
 
+      // helixus-live: 原来是原尺寸 PNG。共享一个全屏游戏窗口时，一张图 base64 后超过 /api/ai/vercel 的 10mb 上限（413），
+      // 弹幕回复直接失败。缩到最宽 1280 再存 JPEG，一张几百 KB，LLM 看画面够用
+      const scale = Math.min(1, CAPTURE_MAX_WIDTH / videoRef.current.videoWidth)
       const canvas = document.createElement('canvas')
-      canvas.width = videoRef.current.videoWidth
-      canvas.height = videoRef.current.videoHeight
+      canvas.width = Math.round(videoRef.current.videoWidth * scale)
+      canvas.height = Math.round(videoRef.current.videoHeight * scale)
       const ctx = canvas.getContext('2d')
       if (!ctx) return
 
-      ctx.drawImage(videoRef.current, 0, 0)
-      const data = canvas.toDataURL('image/png')
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
+      const data = canvas.toDataURL('image/jpeg', 0.85)
 
       if (data !== '') {
         logger.log('capture')

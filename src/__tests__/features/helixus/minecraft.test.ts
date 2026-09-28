@@ -64,6 +64,17 @@ describe('helixus minecraft [mc:] tags', () => {
     expect(commands).toEqual(['去砍树'])
   })
 
+  it('treats [game:...] (the Civ VI form) the same as [mc:...], also when split', () => {
+    expect(extractMcCommands('[happy]好\n[game:优先扩张]').commands).toEqual([
+      '优先扩张',
+    ])
+    const commands: string[] = []
+    const filter = new McTagStreamFilter((c) => commands.push(c))
+    const out = [filter.push('走着瞧[ga'), filter.push('me:和韩国结盟]')]
+    expect(out.join('') + filter.flush()).toBe('走着瞧')
+    expect(commands).toEqual(['和韩国结盟'])
+  })
+
   it('does not hold back emotion tags', () => {
     const filter = new McTagStreamFilter(() => {})
     expect(filter.push('[hap')).toBe('[hap')
@@ -149,6 +160,43 @@ describe('helixus minecraft prompt block', () => {
     expect(block).toContain('- 【新】你受伤了（zombie）')
     expect(block).not.toContain('planner internal note')
     expect(block).toContain('[mc:具体指令]')
+  })
+})
+
+describe('helixus self-play prompt block for Civilization VI', () => {
+  it('uses the link summary, the planner state, and teaches [game:]', () => {
+    mcStore.setState({
+      selfPlay: true,
+      reachable: true,
+      narratedSeq: 0,
+      events: [
+        {
+          seq: 1,
+          at: Date.now(),
+          kind: 'turn',
+          text: '第 12 回合打完：在河边建了第三座城',
+          urgency: 'soon',
+        },
+      ],
+      status: status({
+        game: 'civ6',
+        turn: 13,
+        summary: 'Turn 13 | Korea (Seondeok) | Score: 40',
+        planner: {
+          thinking: true,
+          executing: null,
+          pending: 0,
+          givenUp: false,
+        },
+      }),
+    })
+    const block = mcPromptBlock()
+    expect(block).toContain('【你正在自己玩文明6】')
+    expect(block).toContain('Turn 13 | Korea (Seondeok)')
+    expect(block).toContain('幕僚正在：在想下一步')
+    expect(block).toContain('- 【新】第 12 回合打完')
+    expect(block).toContain('[game:方针]')
+    expect(block).not.toContain('背包')
   })
 })
 
