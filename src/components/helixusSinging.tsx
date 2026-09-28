@@ -45,7 +45,8 @@ const HelixusSinging = () => {
           )}
         </div>
       )}
-      <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center gap-1 px-8 text-center">
+      {/* 和 AssistantText（唱歌时隐藏）同一个位置，让开底部输入框 */}
+      <div className="absolute bottom-[86px] left-0 right-0 flex flex-col items-center gap-1 px-8 text-center sm:bottom-[104px]">
         <div
           className="text-4xl font-bold text-white"
           style={{ textShadow: shadow, minHeight: '1.2em' }}
